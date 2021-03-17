@@ -1,0 +1,134 @@
+#!python
+
+import os
+
+
+env = DefaultEnvironment()
+
+opts = Variables( [], ARGUMENTS )
+
+opts.Add( EnumVariable( 'target', 'Compilation target', 'debug', [ 'debug', 'release' ] ) )
+
+opts.Add( EnumVariable( 'platform', 'Compilation platform', '', [ '', 'windows', 'linux', 'osx' ] ) )
+
+opts.Add( BoolVariable( 'use_llvm', 'Use the LLVM / Clang compiler', 'no' ) )
+
+opts.Update( env )
+
+
+if env[ 'platform' ] == '':
+
+  if env[ 'PLATFORM' ] == 'darwin':
+
+    env[ 'platform' ] = 'osx'
+
+  elif env[ 'PLATFORM' ] == 'win32':
+
+    env[ 'platform' ] = 'windows'
+
+  else:
+
+    env[ 'platform' ] = 'linux'
+
+  #
+
+#
+
+if env[ 'use_llvm' ]:
+
+  env[ 'CC' ] = 'clang'
+
+  env[ 'CXX' ] = 'clang++'
+
+#
+
+if env[ 'platform' ] == 'osx':
+
+  env.Append( CCFLAGS = [ '-arch', 'x86_64' ] )
+
+  env.Append( LINKFLAGS = [ '-arch', 'x86_64' ] )
+
+  if env[ 'target' ] == 'debug':
+
+    env.Append( CCFLAGS = [ '-g', '-O2' ] )
+
+  else:
+
+    env.Append( CCFLAGS = [ '-O3' ] )
+
+  #
+
+elif env[ 'platform' ] == 'linux':
+
+  env.Append( CCFLAGS = [ '-fPIC' ] )
+
+  if env[ 'target' ] == 'debug':
+
+    env.Append( CCFLAGS = [ '-g3', '-Og' ] )
+
+  else:
+
+    env.Append( CCFLAGS = [ '-O3' ] )
+
+  #
+
+elif env[ 'platform' ] == 'windows':
+
+  env.Append( ENV = os.environ )
+
+  env.Append( CCFLAGS = [ '-W3', '-GR', '-EHsc', '-DWIN32', '-D_WIN32', '-D_WINDOWS', '-D_CRT_SECURE_NO_WARNINGS' ] )
+
+  if env[ 'target' ] == 'debug':
+
+    env.Append( CCFLAGS = [ '-MDd', '-D_DEBUG' ] )
+
+    env.Append( LINKFLAGS = [ '-DEBUG' ] )
+
+  else:
+
+    env.Append( CCFLAGS = [ '-MD', '-O2', '-DNDEBUG' ] )
+
+  #
+
+#
+
+
+env.Append( CPPPATH = [ 'sources/c', 'inputs/godot_headers', 'inputs/hashlink/src' ] )
+
+env.Append( LIBPATH = [ 'inputs/hashlink' ] )
+
+env.Append( LIBS = [ 'hl' ] )
+
+
+cache = 'outputs/.cache/' + env[ 'platform' ] + '.' + env[ 'target' ] + '/'
+
+SConsignFile( cache + '.sconsign' )
+
+env.VariantDir( cache + 'sources', 'sources/c', duplicate = 0 )
+
+env.VariantDir( cache + 'hashlink', 'inputs/hashlink/src', duplicate = 0 )
+
+sources = Glob( cache + 'sources/*.c' ) + Glob( cache + 'sources/*/*.c' )
+
+sources += [
+
+  cache + 'hashlink/code.c',
+
+  cache + 'hashlink/debugger.c',
+
+  cache + 'hashlink/jit.c',
+
+  cache + 'hashlink/module.c',
+
+  cache + 'hashlink/profile.c',
+
+]
+
+env[ 'SHLIBPREFIX' ] = ''
+
+library = env.SharedLibrary( target = 'outputs/gh.hdll', source = sources )
+
+Default( library )
+
+
+Help( opts.GenerateHelpText( env ) )

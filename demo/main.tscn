@@ -1,0 +1,14 @@
+[gd_scene load_steps=3 format=2]
+
+[ext_resource path="res://HaxeNode.gdns" type="Script" id=1]
+[ext_resource path="res://Main.gd" type="Script" id=2]
+
+[node name="main" type="Node2D"]
+script = ExtResource( 2 )
+
+[node name="node" type="Node" parent="."]
+script = ExtResource( 1 )
+
+[node name="timer" type="Timer" parent="."]
+wait_time = 2.0
+autostart = true
