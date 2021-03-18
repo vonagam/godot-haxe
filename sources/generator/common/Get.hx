@@ -5,7 +5,7 @@ import common.Data;
 
 function getPrimitiveTypes(): Array< PrimitiveTypeData > {
 
-  // TODO: what is proper unsigned of: char, uint8_t, uint32_t, uint64_t ???
+  // TODO: someday use proper things for char, unsigned and 64
 
   final types = new Array< PrimitiveTypeData >();
 
@@ -54,11 +54,11 @@ function getPrimitiveTypes(): Array< PrimitiveTypeData > {
 
     data.name.gdn = 'uint32_t';
 
-    data.name.gh = 'int64_t';
+    data.name.gh = 'uint32_t';
 
-    data.name.hx = 'hl.I64';
+    data.name.hx = 'UInt';
 
-    data.name.prim = '_I64';
+    data.name.prim = '_I32';
 
   } ) );
 
@@ -66,11 +66,11 @@ function getPrimitiveTypes(): Array< PrimitiveTypeData > {
 
     data.name.gdn = 'int64_t';
 
-    data.name.gh = 'int64_t';
+    data.name.gh = 'int';
 
-    data.name.hx = 'hl.I64';
+    data.name.hx = 'Int';
 
-    data.name.prim = '_I64';
+    data.name.prim = '_I32';
 
   } ) );
 
@@ -78,11 +78,11 @@ function getPrimitiveTypes(): Array< PrimitiveTypeData > {
 
     data.name.gdn = 'uint64_t';
 
-    data.name.gh = 'int64_t';
+    data.name.gh = 'uint32_t';
 
-    data.name.hx = 'hl.I64';
+    data.name.hx = 'UInt';
 
-    data.name.prim = '_I64';
+    data.name.prim = '_I32';
 
   } ) );
 
