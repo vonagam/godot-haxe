@@ -23,24 +23,20 @@ function main(): Void {
 
   GdHl.registerProperty( 'HaxeNode', 'prop', function( node: Any ): godot.Variant {
 
-    final node: HaxeNode = node;
-
-    return node.prop;
+    return ( node: HaxeNode ).prop;
 
   }, function( node: Any, variant: godot.Variant ) {
 
-    final node: HaxeNode = node;
+    ( node: HaxeNode ).prop = variant;
 
-    node.prop = variant.asReal();
-
-  }, godot.Variant.Type.REAL, ( 3.0: godot.Variant ), 1 + 2, 0, "", 0, null );
+  }, godot.Variant.Type.INT, 4, 1 + 2, 0, "", 0, null );
 
 }
 
 
 class HaxeNode extends godot.Node {
 
-  public var prop: Float = 3.0;
+  public var prop: Int = 4;
 
   public function new( doConstruct: Bool = true ) {
 
@@ -53,6 +49,10 @@ class HaxeNode extends godot.Node {
   }
 
   public function hello(): godot.Vector2 {
+
+    final child = new godot.Node();
+
+    this.addChild( child, true );
 
     final references = new HaxeReference();
 

@@ -203,9 +203,9 @@ static godot_variant gh_register_method_call( godot_object *owner, void *method_
 
   }
 
-  vdynamic *output = hl_dyn_call( method, ( vdynamic *[] ) { object, ( vdynamic * ) wrapped }, 2 );
+  gh_godot_variant *output = hl_call2( gh_godot_variant *, method, vdynamic *, object, varray *, wrapped );
 
-  godot_variant result = gh_register_make_godot_variant( ( gh_godot_variant * ) output->v.ptr );
+  godot_variant result = gh_register_make_godot_variant( output );
 
   return result;
 
@@ -272,9 +272,9 @@ static godot_variant gh_register_property_get( godot_object *owner, void *getter
 
   vdynamic *object = *( vdynamic ** ) root;
 
-  vdynamic *output = hl_dyn_call( getter, ( vdynamic *[] ) { object }, 1 );
+  gh_godot_variant *output = hl_call1( gh_godot_variant *, getter, vdynamic *, object );
 
-  godot_variant result = gh_register_make_godot_variant( ( gh_godot_variant * ) output->v.ptr );
+  godot_variant result = gh_register_make_godot_variant( output );
 
   return result;
 
@@ -292,7 +292,7 @@ static void gh_register_property_set( godot_object *owner, void *setter_root, vo
 
   gdnative_core->godot_variant_new_copy( wrapper->value, value ); // TODO: who owns passed in variant value???
 
-  hl_dyn_call( setter, ( vdynamic *[] ) { object, ( vdynamic * ) wrapper }, 2 );
+  hl_call2( void, setter, vdynamic *, object, gh_godot_variant *, wrapper );
 
 }
 
