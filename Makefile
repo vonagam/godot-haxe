@@ -15,6 +15,12 @@ outputs/gh.hdll: $(shell find sources/c -name "*.c") sources/c/gen/core.c Sconst
 
 sources/c/gen/core.c: $(shell find sources/generator -name "*.hx") sources/generator/run.hxml inputs
 
+	@make generate
+
+#
+
+generate:
+
 	@cd sources/generator && haxe run.hxml
 
 #
@@ -93,4 +99,4 @@ reset: clean
 #
 
 
-.PHONY: all hdll demo_edit demo_run clean reset
+.PHONY: all hdll generate demo_edit demo_run clean reset
