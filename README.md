@@ -2,17 +2,15 @@
 
 # About
 
-This is a not-quite-working-yet integration of hashlink into godot.
+This is a work-in-progress integration of hashlink into godot.
 
 This code is published to at least be a potential reference to somebody who may want to write the bindings themselves.
 
-Three directions of work still needed:
+Main pending things:
 
-1) Fix gc errors on library reload: Godot reloads library (terminates and initializes it again) quire often (for example on each focus of its editor) and seems like there is something in garbage collector code of hashlink that is not being cleaned up after termination that causes an exception (from this [line](https://github.com/HaxeFoundation/hashlink/blob/c2786410a0fc525edda88b266fee1158efc38f44/src/allocator.c#L203)).
+1) Haxe macros/helpers (for registering things mainly). I was focusing on c and generator parts until this point.
 
-2) Add haxe macros (for registering things mainly). I was focusing on c and generator parts until this point.
-
-3) Signals things: registering, subscribing (with lambdas), triggering, waiting.
+1) Signals: registering, subscribing (with lambdas), triggering, waiting.
 
 # Setup
 

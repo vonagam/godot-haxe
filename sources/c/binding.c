@@ -98,6 +98,8 @@ HL_PRIM void HL_NAME( binding_set_constructors )( varray *constructors ) {
 
   binding_constructors = constructors;
 
+  hl_remove_root( &binding_constructors ); // just in case somebody calls it twice...
+
   hl_add_root( &binding_constructors );
 
 }

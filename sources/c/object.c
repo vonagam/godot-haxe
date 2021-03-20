@@ -36,7 +36,7 @@ static void gh_object_data_free( gh_object_data *data ) {
 
   if ( gh_object_free( data->root ) ) return; // returns here if godot's destroy was called before finalizer
 
-  gdnative_core->godot_object_destroy( data->owner ); // TODO: during godot_gdnative_terminate doesn't call destructors
+  gdnative_core->godot_object_destroy( data->owner );
 
 }
 

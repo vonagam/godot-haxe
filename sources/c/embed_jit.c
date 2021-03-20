@@ -130,8 +130,6 @@ void gh_embed_jit_main() {
 
 void gh_embed_jit_free() {
 
-  if ( stage >= load_code_done ) hl_gc_major(); // to free memory on godot side too by invoking finalizers
-
   if ( stage < code_free_done && stage >= load_code_done ) hl_code_free( ctx.code );
 
   if ( stage >= module_alloc_done ) hl_module_free( ctx.m );
@@ -141,6 +139,8 @@ void gh_embed_jit_free() {
   if ( stage >= register_thread_done ) hl_unregister_thread();
 
   if ( stage >= global_init_done ) hl_global_free();
+
+  if ( stage >= global_init_done ) hl_gc_major(); // to free memory on godot side too by invoking finalizers
 
   stage = nothing_done;
 
