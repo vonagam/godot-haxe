@@ -4,15 +4,9 @@ using StringTools;
 
 import sys.FileSystem;
 
-import sys.io.File;
-
-using vhx.iter.IterTools;
+import common.data.*;
 
 import common.Code;
-
-using common.Code.CodeTools;
-
-import core.Data;
 
 
 function writeCoreCode( coreTypes: Array< CoreTypeData > ) {
@@ -22,9 +16,9 @@ function writeCoreCode( coreTypes: Array< CoreTypeData > ) {
 
   final hCode = new Code();
 
-  hCode << '#ifndef GODOT_HL_GEN_CORE\n';
+  hCode << '#ifndef GH_GEN_CORE_H\n';
 
-  hCode << '#define GODOT_HL_GEN_CORE\n\n';
+  hCode << '#define GH_GEN_CORE_H\n\n';
 
   hCode << '#include <hl.h>\n\n';
 
@@ -44,10 +38,6 @@ function writeCoreCode( coreTypes: Array< CoreTypeData > ) {
 
   hCode << '\n';
 
-  hCode << '#endif\n';
-
-  File.saveContent( 'sources/c/gen/core.h', hCode );
-
 
   final cCode = new Code();
 
@@ -63,17 +53,19 @@ function writeCoreCode( coreTypes: Array< CoreTypeData > ) {
 
     for ( method in type.methods ) {
 
-      final isConstructor = method.name.hx == 'new' || method.name.gdn.startsWith( 'new_' );
+      final isConstructor = method.isConstructor();
 
       final returns = method.signature[ isConstructor ? 1 : 0 ];
 
       final arguments = method.signature.slice( isConstructor ? 2 : 1 );
 
-      cCode << CodeTools.ghSignature( returns, method, arguments );
+      cCode << method.cSignature( returns, arguments );
 
       final call = '${ method.callee }( ${ method.signature.iter().skip( 1 ).map( _ -> _.ghUnwrap() ).join( ', ' ) } )';
 
       if ( isConstructor ) {
+
+        hCode << method.hSignature( returns, arguments );
 
         cCode << '  ${ returns.ghVariable() } = ${ cast( returns.type, CoreTypeData ).allocate };\n\n';
 
@@ -95,7 +87,7 @@ function writeCoreCode( coreTypes: Array< CoreTypeData > ) {
 
       cCode << '}\n\n';
 
-      cCode << CodeTools.primSignature( returns, method, arguments );
+      cCode << method.primSignature( returns, arguments );
 
       cCode << '\n';
 
@@ -103,6 +95,11 @@ function writeCoreCode( coreTypes: Array< CoreTypeData > ) {
 
   }
 
-  File.saveContent( 'sources/c/gen/core.c', cCode );
+
+  hCode << '#endif\n';
+
+  hCode >> 'core.h';
+
+  cCode >> 'core.c';
 
 }

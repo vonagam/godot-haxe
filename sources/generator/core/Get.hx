@@ -12,11 +12,11 @@ using vhx.ds.MapTools;
 
 using vhx.str.StringTools;
 
-using vhx.iter.IterTools;
+import common.data.*;
 
-import common.Data;
+import common.Docs;
 
-import core.Data;
+import core.Fix;
 
 import core.Operator;
 
@@ -44,9 +44,11 @@ private typedef FuncJson = {
 
 function getCoreTypes( primitiveTypes: Array< PrimitiveTypeData >, objectType: TypeData ) {
 
-  final basicTypes = [ for ( type in primitiveTypes ) type.name.gdn => ( type: TypeData ) ];
+  final gdnTypes = new Map< String, TypeData >();
 
-  basicTypes[ 'godot_object' ] = objectType;
+  for ( type in primitiveTypes ) gdnTypes[ type.name.gdn ] = type;
+
+  gdnTypes[ objectType.name.gdn ] = objectType;
 
 
   final gdsNames = [ for ( name in FileSystem.readDirectory( 'inputs/godot/doc/classes' ) ) {
@@ -62,6 +64,8 @@ function getCoreTypes( primitiveTypes: Array< PrimitiveTypeData >, objectType: T
   } ];
 
 
+  final coreTypes = new Map< String, CoreTypeData >();
+
   final funcs = new Array< {
 
     type: CoreTypeData,
@@ -74,11 +78,7 @@ function getCoreTypes( primitiveTypes: Array< PrimitiveTypeData >, objectType: T
 
   } >();
 
-  final coreTypes = new Map< String, CoreTypeData >();
-
-  var api: ApiJson = Json.parse( File.getContent( 'inputs/godot_headers/gdnative_api.json' ) ).core;
-
-  var index = 2;
+  var api: ApiJson = Json.parse( File.getContent( 'inputs/godot-headers/gdnative_api.json' ) ).core;
 
   while ( api != null ) {
 
@@ -114,13 +114,13 @@ function getCoreTypes( primitiveTypes: Array< PrimitiveTypeData >, objectType: T
 
         type.name.gh = 'gh_${ gdnName }';
 
-        type.name.hx = '${ gdsName == 'String' || gdsName == 'Array' ? 'Gd' : '' }${ gdsName }';
+        type.name.hx = gdsName;
 
         type.name.prim = '_GH_${ gdnName.removePrefix( 'godot_' ).toUpperCase() }';
 
-        type.index = gdsName == 'Variant' ? 1 : index++;
-
         type.allocate = 'hl_gc_alloc_noptr( sizeof( ${ gdnName } ) )';
+
+        gdnTypes[ type.name.gdn ] = type;
 
       } ) );
 
@@ -147,8 +147,6 @@ function getCoreTypes( primitiveTypes: Array< PrimitiveTypeData >, objectType: T
   }
 
 
-  final getType = ( gdnName: String ) -> nil( basicTypes[ gdnName ] ).orMaybe( () -> coreTypes[ gdnName ] );
-
   for ( func in funcs ) {
 
     final type = func.type;
@@ -157,7 +155,7 @@ function getCoreTypes( primitiveTypes: Array< PrimitiveTypeData >, objectType: T
 
       if ( index != 1 && part[ 1 ].startsWith( 'r_' ) ) break; // TODO: 4 methods...
 
-      final type = getType( part[ 0 ].removePrefix( 'const ' ).removeSuffix( ' *' ) );
+      final type = gdnTypes[ part[ 0 ].removePrefix( 'const ' ).removeSuffix( ' *' ) ];
 
       if ( type == null ) break;
 
@@ -204,10 +202,63 @@ function getCoreTypes( primitiveTypes: Array< PrimitiveTypeData >, objectType: T
   }
 
 
-  final coreTypesArray = coreTypes.iterValues().toArray();
+  for ( type in coreTypes ) {
 
-  coreTypesArray.sort( ( typeA, typeB ) -> typeA.index - typeB.index );
+    final docs = new ClassDocs( type.name.gds );
 
-  return coreTypesArray;
+    if ( docs == null ) continue;
+
+    type.doc = docs.description();
+
+    for ( docs in docs.methods() ) {
+
+      final name = docs.name();
+
+      final method = type.methods.iter().find( _ -> _.name.gdn == name )!;
+
+      if ( method == null ) continue;
+
+      method.doc = docs.description();
+
+    }
+
+    for ( docs in docs.members() ) {
+
+      final name = docs.name();
+
+      final getterName = docs.getter().pipe( _ -> _ == '' ? 'get_${ name }' : _ );
+
+      final getter = type.methods.iter().find( _ -> _.name.gdn == getterName );
+
+      if ( getter == null ) continue;
+
+      final setterName = docs.setter().pipe( _ -> _ == '' ? 'set_${ name }' : _ );
+
+      final setter = type.methods.iter().find( _ -> _.name.gdn == setterName );
+
+      final property = new PropertyData();
+
+      property.name.gds = name;
+
+      property.name.hx = name.toCamelCase();
+
+      property.getter = getter;
+
+      property.setter = setter;
+
+      property.doc = docs.description();
+
+      type.properties.push( property );
+
+    }
+
+    // TODO: constants
+
+    fixType( type );
+
+  }
+
+
+  return coreTypes.iterValues().toArray();
 
 }

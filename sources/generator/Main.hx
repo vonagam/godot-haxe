@@ -1,5 +1,3 @@
-import common.Get;
-
 import core.Get;
 
 import object.Get;
@@ -17,9 +15,9 @@ function main() {
 
   Sys.setCwd( '../../' );
 
-  final primitiveTypes = getPrimitiveTypes();
+  final primitiveTypes = common.data.PrimitiveTypeData.PrimitiveTypeDataTools.getPrimitiveTypes();
 
-  final objectType = getObjectType();
+  final objectType = common.data.ObjectTypeData.ObjectTypeDataTools.getObjectType();
 
   final coreTypes = getCoreTypes( primitiveTypes, objectType );
 

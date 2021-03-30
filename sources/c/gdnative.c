@@ -1,10 +1,12 @@
-#include "./gdnative.h"
-
-#include "./embed_jit.h"
-
 #include "./binding.h"
 
 #include "./construct.h"
+
+#include "./defaults.h"
+
+#include "./embed_jit.h"
+
+#include "./gdnative.h"
 
 
 const godot_gdnative_core_api_struct *gdnative_core = NULL;
@@ -26,6 +28,10 @@ void *gdnative_library = NULL;
 void *gdnative_handle = NULL;
 
 int gdnative_language = -1;
+
+bool gdnative_in_editor = false;
+
+bool gdnative_in_init = true;
 
 
 // prepare
@@ -56,7 +62,13 @@ void GDN_EXPORT godot_gdnative_init( godot_gdnative_init_options *options ) {
 
   gdnative_library = options->gd_native_library;
 
+  gdnative_in_editor = options->in_editor;
+
+  gdnative_in_init = true;
+
   gh_embed_jit_init();
+
+  gh_defaults_init();
 
 }
 
@@ -70,6 +82,8 @@ void GDN_EXPORT godot_nativescript_init( void *handle ) {
 
   gh_embed_jit_main();
 
+  gdnative_in_init = false;
+
 }
 
 // free
@@ -79,6 +93,8 @@ void GDN_EXPORT godot_gdnative_terminate( godot_gdnative_terminate_options *opti
   gh_binding_free();
 
   gh_construct_free();
+
+  gh_defaults_free();
 
   gh_embed_jit_free();
 
@@ -103,5 +119,9 @@ void GDN_EXPORT godot_gdnative_terminate( godot_gdnative_terminate_options *opti
   gdnative_handle = NULL;
 
   gdnative_language = -1;
+
+  gdnative_in_editor = false;
+
+  gdnative_in_init = true;
 
 }

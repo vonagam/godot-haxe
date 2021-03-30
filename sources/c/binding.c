@@ -88,6 +88,8 @@ void gh_binding_free() {
 
 HL_PRIM void HL_NAME( binding_set_constructors )( varray *constructors ) {
 
+  if ( binding_constructors != NULL ) hl_fatal( "Cannot set binding contructors twice." );
+
   for ( int i = 0; i < constructors->size; i++ ) {
 
     gh_binding_constructor *constructor = hl_aptr( constructors, gh_binding_constructor * )[ i ];
@@ -97,8 +99,6 @@ HL_PRIM void HL_NAME( binding_set_constructors )( varray *constructors ) {
   }
 
   binding_constructors = constructors;
-
-  hl_remove_root( &binding_constructors ); // just in case somebody calls it twice...
 
   hl_add_root( &binding_constructors );
 

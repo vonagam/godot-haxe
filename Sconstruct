@@ -93,7 +93,7 @@ elif env[ 'platform' ] == 'windows':
 #
 
 
-env.Append( CPPPATH = [ 'sources/c', 'inputs/godot_headers', 'inputs/hashlink/src' ] )
+env.Append( CPPPATH = [ 'sources/c', 'inputs/godot-headers', 'inputs/hashlink/src' ] )
 
 env.Append( LIBPATH = [ 'inputs/hashlink' ] )
 

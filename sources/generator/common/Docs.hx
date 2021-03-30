@@ -56,9 +56,38 @@ abstract MethodDocs( Access ) from Access to Access {
 
     return this.att.name;
 
+  public inline function returns(): ValueDocs
+
+    return this.node.resolve( 'return' );
+
+  public inline function arguments(): Array< ValueDocs >
+
+    return this.nodes.argument;
+
   public inline function description()
 
     return trimDescription( this.node.description.innerHTML );
+
+}
+
+
+abstract ValueDocs( Access ) from Access to Access {
+
+  public inline function name()
+
+    return this.att.name;
+
+  public inline function type()
+
+    return this.att.type;
+
+  public inline function enumed()
+
+    return this.has.resolve( 'enum' ) ? this.att.resolve( 'enum' ) : '';
+
+  public inline function defaults()
+
+    return this.has.resolve( 'default' ) ? this.att.resolve( 'default' ) : '';
 
 }
 
@@ -68,6 +97,14 @@ abstract MemberDocs( Access ) from Access to Access {
   public inline function name()
 
     return this.att.name;
+
+  public inline function getter()
+
+    return this.att.getter;
+
+  public inline function setter()
+
+    return this.att.setter;
 
   public inline function description()
 
@@ -99,7 +136,7 @@ abstract ConstantDocs( Access ) from Access to Access {
 
     return this.att.value;
 
-  public inline function group()
+  public inline function enumed()
 
     return this.has.resolve( 'enum' ) ? this.att.resolve( 'enum' ) : '';
 
@@ -112,4 +149,4 @@ abstract ConstantDocs( Access ) from Access to Access {
 
 private function trimDescription( html: String )
 
-  return ~/\n\t{2}/g.replace( html, '\n' ).trim();
+  return ~/\n\t{2,}/g.replace( html, '\n' ).trim();

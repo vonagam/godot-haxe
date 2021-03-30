@@ -6,28 +6,26 @@ import haxe.macro.Expr;
 
 import sys.FileSystem;
 
-import sys.io.File;
-
 using vhx.str.StringTools;
-
-using vhx.iter.IterTools;
 
 import vhx.macro.ExprTools.*;
 
-import vhx.macro.Printer;
+import common.data.*;
 
-import common.Docs;
+using common.HaxeTools;
 
-import common.Haxe;
-
-import object.Data;
+import object.Api;
 
 
 function writeObjectHaxe( objectTypes: Array< ObjectTypeData > ) {
 
-  FileSystem.createDirectory( 'sources/lib/gen/object/godot' );
+  FileSystem.createDirectory( 'sources/lib/sources/gd/hl' );
 
-  final printer = new Printer( '  ' );
+  Api.writeApiHaxe( objectTypes );
+
+  final apiDefinition = dClass( { isExtern: true, name: 'ObjectsApi' } );
+
+  final eApi = macro gd.hl.ObjectsApi;
 
   final doConstructArgs = [ arg( 'doConstruct', tPath( 'Bool' ), { value: eBool( true ) } ) ];
 
@@ -37,19 +35,22 @@ function writeObjectHaxe( objectTypes: Array< ObjectTypeData > ) {
 
     final type = objectType;
 
-    final isGlobalConstants = type.name.gds == 'GlobalConstants';
-
-    final docs = new ClassDocs( isGlobalConstants ? '@GlobalScope' : type.name.gds );
-
-    final doc = docs.description();
-
     final name = type.name.hx;
 
-    final metas = [ meta( ':using', [ macro godot.$name ] ) ];
+    final extended = type.parent.nil().map( _ -> tyPath( _.name.hx ) );
 
-    final extended = nil( type.parent ).map( _ -> tyPath( _.name.hx ) );
+    final definition = dClass( {
 
-    final definition = dClass( name, [], { doc: doc, meta: metas, extended: extended } );
+      doc: type.doc,
+
+      name: name,
+
+      extended: extended,
+
+    } );
+
+
+    // TODO: isSingleton
 
 
     if ( name == 'Object' ) {
@@ -63,15 +64,22 @@ function writeObjectHaxe( objectTypes: Array< ObjectTypeData > ) {
     }
 
 
+    for ( property in type.properties ) {
+
+      property.defineIn( definition );
+
+    }
+
+
     {
 
       final access = [ type.isInstanciable ? APublic : APrivate ];
 
-      final metas = type.isInstanciable ? [] :  geMetas( macro @:allow( godot.GdHlTagsSetup.run ) _ );
+      final metas = type.isInstanciable ? [] : geMetas( macro @:allow( gd.hl.InitApi.init ) _ );
 
       final name = 'new';
 
-      final doConstruct = macro if ( doConstruct ) GdHl.constructBinding( this, $v{ type.name.gds } );
+      final doConstruct = macro if ( doConstruct ) gd.hl.Api.constructBinding( this, $v{ type.name.gds } );
 
       final body = eBlock( extended.turn( () -> [ doConstructSuper, doConstruct ], () -> [ doConstruct ] ) );
 
@@ -82,99 +90,69 @@ function writeObjectHaxe( objectTypes: Array< ObjectTypeData > ) {
     }
 
 
-    // isSingleton
-
-
     for ( method in type.methods ) {
-
-      if ( method.isVirtual ) continue; // TODO:
-
-      final docs = docs.methods().iter().find( _ -> _.name() == method.name.gds );
-
-      final doc = docs.map( _ -> _.description() );
-
-      final metas = [ meta( ':hlNative', [ 'gh', method.name.prim ] ) ];
-
-      final access = [ APublic, AStatic ];
 
       final name = method.name.hx;
 
-      final args = method.signature.map( _ -> arg( _.name.hx, tPath( _.type.name.hx ) ) );
+      final apiName = '${ objectType.name.hx }_${ name }';
 
-      args[ 0 ] = arg( 'that', tPath( objectType.name.hx ) );
+      final arguments = method.signature.slice( 1 );
 
-      final type = tPath( method.signature[ 0 ].type.name.hx );
+      final args = arguments.map( _ -> _.hxArg() );
 
-      final body = eThrow( eInt( 8 ) );
+      final returns = method.signature[ 0 ].type.name.hx;
 
-      final field = fFun( name, args, type, { doc: doc, meta: metas, access: access, body: body } );
+      final type = tPath( returns );
 
-      definition.fields.push( field );
+      {
 
-    }
+        final metas = method.metas();
 
+        final access = [ AStatic ];
 
-    final definitions = [ definition ];
+        final apiArgs = [ arg( 'that', tPath( objectType.name.hx ) ) ].concat( args );
 
-    if ( isGlobalConstants ) definitions.pop();
+        final field = fFun( apiName, apiArgs, type, { meta: metas, access: access } );
 
+        apiDefinition.fields.push( field );
 
-    for ( group => constants in docs.constants().iter().key( _ -> _.group() ).filter( _ -> _.key != '' ).toGroups() ) {
+      }
 
-      if ( group.contains( '.' ) ) continue;
+      {
 
-      final name = ( isGlobalConstants ? '' : type.name.hx ) + group;
+        final doc = method.doc;
 
-      final definition = HaxeTools.makeEnum( name, constants.map( constant -> {
+        final isVirtual = method.isVirtual;
 
-        name: constant.name(),
+        final isOverride = isVirtual && objectType.parent.iterByOne( _ -> _.parent ).any( _ -> _.methods.iter().any( _ -> _.name.hx == name ) );
 
-        value: constant.value(),
+        final access = [ APublic ];
 
-        doc: constant.description(),
+        if ( ! isVirtual ) access.push( AInline );
 
-      } ) );
+        if ( isOverride ) access.push( AOverride );
 
-      definitions.push( definition );
+        final callArgs = [ eIdent( 'this' ) ].concat( arguments.map( _ -> eIdent( _.name.hx ) ) );
 
-    }
+        final call = eCall( eField( eApi, apiName ), callArgs );
 
+        final body = returns == 'Void' ? call : eReturn( call );
 
-    if ( name == 'Object' ) {
+        final field = fFun( name, args, type, { doc: doc, access: access, body: body } );
 
-      final types = objectTypes.filter( _ -> _.name.hx != 'GlobalConstants' );
+        definition.fields.push( field );
 
-      definitions.push( macro class GdHlTagsSetup {
-
-        public static function run() {
-
-          final constructors = new hl.NativeArray< GdHl.GdHlBindingConstructor >( $v{ types.length } );
-
-          $b{ [ for ( index => type in types ) {
-
-            macro constructors[ $v{ index } ] = new GdHl.GdHlBindingConstructor(
-
-              $v{ type.name.gds },
-
-              () -> $e{ eNew( tyPath( type.name.hx ), [ eBool( false ) ] ) }
-
-            );
-
-          } ] }
-
-          GdHl.bindingSetConstructors( constructors );
-
-        }
-
-      } );
+      }
 
     }
 
 
-    final haxe = 'package godot;\n\n' + definitions.map( _ -> printer.printTypeDefinition( _ ) ).join( '\n\n' );
+    if ( name != 'GlobalConstants' ) definition.output();
 
-    File.saveContent( 'sources/lib/gen/object/godot/${ name }.hx', haxe );
+    for ( data in type.enums ) data.toDefinition().output();
 
   }
+
+  apiDefinition.output( true );
 
 }

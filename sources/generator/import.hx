@@ -1,3 +1,5 @@
-import vhx.nil.Nil;
+using vhx.nil.NilTools;
 
-import vhx.nil.Nil.*;
+using vhx.flow.FlowTools;
+
+using vhx.iter.IterTools;

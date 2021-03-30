@@ -24,5 +24,9 @@ void *gdnative_handle; // used for registering things
 
 int gdnative_language; // used for bindings related things
 
+bool gdnative_in_editor; // not used, just in case
+
+bool gdnative_in_init; // used to safe guard against creating objects during registration
+
 
 #endif

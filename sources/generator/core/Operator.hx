@@ -4,13 +4,11 @@ using StringTools;
 
 using vhx.str.StringTools;
 
-using vhx.iter.IterTools;
-
 import vhx.macro.ExprTools;
 
 import vhx.macro.ExprTools.*;
 
-import common.Data;
+import common.data.*;
 
 
 private final operators = [

@@ -6,19 +6,13 @@ import haxe.macro.Expr;
 
 import sys.FileSystem;
 
-import sys.io.File;
-
-using vhx.iter.IterTools;
+using vhx.str.StringTools;
 
 import vhx.macro.ExprTools.*;
 
-import vhx.macro.Printer;
+import common.data.*;
 
-import common.Docs;
-
-import common.Haxe;
-
-import core.Data;
+using common.HaxeTools;
 
 import core.Operator;
 
@@ -27,53 +21,37 @@ import core.Fix;
 
 function writeCoreHaxe( coreTypes: Array< CoreTypeData > ) {
 
-  FileSystem.createDirectory( 'sources/lib/gen/core/godot' );
+  FileSystem.createDirectory( 'sources/lib/sources/gd' );
 
-  final printer = new Printer( '  ' );
+  for ( type in coreTypes ) {
 
-  for ( coreType in coreTypes ) {
+    final definition = dAbstract( {
 
-    final type = coreType;
+      doc: type.doc,
 
-    final docs = new ClassDocs( type.name.gds );
+      name: type.name.hx,
 
-    final doc = docs.description();
+      type: tPath( 'hl.Abstract', [ eString( type.name.gh ) ] ),
 
-    final name = type.name.hx;
-
-    final real = tPath( 'hl.Abstract', [ eString( type.name.gh ) ] );
-
-    final definition = dAbstract( name, real, [], { doc: doc } );
+    } );
 
 
-    for ( docs in docs.members() ) {
+    for ( property in type.properties ) {
 
-      final name = docs.name();
-
-      final getter = type.methods.iter().find( _ -> _.name.gdn == 'get_${ name }' );
-
-      if ( getter == null ) continue;
-
-      final doc = docs.description();
-
-      final setter = type.methods.iter().find( _ -> _.name.gdn == 'set_${ name }' );
-
-      HaxeTools.addMemberFields( definition, name, getter, setter, -1, doc );
+      property.defineIn( definition );
 
     }
 
 
     for ( method in type.methods ) {
 
-      final isConstructor = method.name.hx == 'new' || method.name.gdn.startsWith( 'new_' );
+      final doc = method.doc;
 
-      final docs = docs.methods().iter().find( _ -> _.name() == method.name.gdn );
-
-      final doc = docs.map( _ -> _.description() );
-
-      final metas = [ meta( ':hlNative', [ 'gh', method.name.prim ] ) ];
+      final metas = method.metas();
 
       addOperatorMeta( method, metas );
+
+      final isConstructor = method.isConstructor();
 
       final access = [ APublic ];
 
@@ -81,7 +59,7 @@ function writeCoreHaxe( coreTypes: Array< CoreTypeData > ) {
 
       final name = method.name.hx;
 
-      final args = method.signature.iter().skip( 2 ).map( _ -> arg( _.name.hx, tPath( _.type.name.hx ) ) ).toArray();
+      final args = method.signature.iter().skip( 2 ).map( _ -> _.hxArg() ).toArray();
 
       final type = tPath( method.signature[ isConstructor ? 1 : 0 ].type.name.hx );
 
@@ -94,14 +72,11 @@ function writeCoreHaxe( coreTypes: Array< CoreTypeData > ) {
     }
 
 
-    final definitions = [ definition ];
+    fixHaxe( type, definition );
 
-    fixHaxe( coreType, definitions );
+    definition.output();
 
-
-    final haxe = 'package godot;\n\n' + definitions.map( _ -> printer.printTypeDefinition( _ ) ).join( '\n\n' );
-
-    File.saveContent( 'sources/lib/gen/core/godot/${ name }.hx', haxe );
+    for ( data in type.enums ) data.toDefinition().output();
 
   }
 

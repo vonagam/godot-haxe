@@ -1,20 +1,14 @@
-package core;
-
-import common.Data;
+package common.data;
 
 
-class CoreTypeData extends GodotTypeData {
+class CoreTypeData extends ClassTypeData {
 
   public var index: Int;
 
   public var allocate: String;
 
 
-  public function new() {
-
-    super();
-
-  }
+  public function new() { super(); }
 
 
   override public function ghReturn( returns: ValueData ) {

@@ -1,39 +1,19 @@
 package core;
 
-using StringTools;
-
-import haxe.macro.Expr;
-
 using vhx.str.StringTools;
-
-using vhx.iter.IterTools;
 
 import vhx.macro.ExprTools;
 
 import vhx.macro.ExprTools.*;
 
-import common.Haxe;
+import common.data.*;
 
 import common.Docs;
 
-import core.Data;
 
+function fixType( type: CoreTypeData ) {
 
-function fixHaxe( coreType: CoreTypeData, definitions: Array< ToTypeDefinition > ) {
-
-  switch ( coreType.name.hx ) {
-
-    case 'Dictionary':
-
-      definitions[ 0 ].fields.iter().find( _ -> _.name == 'set' )!.meta!.push( geMeta( macro @:op( [] ) _ ) );
-
-    case 'GdArray':
-
-      definitions[ 0 ].fields.iter().find( _ -> _.name == 'set' )!.meta!.push( geMeta( macro @:op( [] ) _ ) );
-
-    case 'PoolByteArray' | 'PoolColorArray' | 'PoolIntArray' | 'PoolRealArray' | 'PoolStringArray' | 'PoolVector2Array' | 'PoolVector3Array':
-
-      definitions[ 0 ].fields.iter().find( _ -> _.name == 'get' || _.name == 'set' )!.meta!.push( geMeta( macro @:op( [] ) _ ) );
+  switch ( type.name.hx ) {
 
     case 'Variant':
 
@@ -43,19 +23,102 @@ function fixHaxe( coreType: CoreTypeData, definitions: Array< ToTypeDefinition >
 
         final id = 'Variant.${ name }';
 
-        definitions.push( HaxeTools.makeEnum( name, docs.constants().filter( _ -> _.group() == id ).map( constant -> {
+        final data = new EnumData();
 
-          name: constant.name(),
+        data.name.gds = name;
 
-          value: constant.value(),
+        data.name.hx = 'Variant_${ name }';
 
-          doc: constant.description(),
+        data.values = docs.constants().filter( _ -> _.enumed() == id ).map( ( constant ) -> {
 
-        } ) ) );
+          final value = new EnumValueData();
+
+          value.name.gds = constant.name();
+
+          value.value = constant.value();
+
+          value.doc = constant.description();
+
+          return value;
+
+        } );
+
+        data.nameValues();
+
+        type.enums.push( data );
 
       }
 
-      for ( field in definitions[ 0 ].fields ) {
+    case 'Vector3' | 'Vector2':
+
+      final axes = type.name.hx == 'Vector2' ? [ 'X', 'Y' ] : [ 'X', 'Y', 'Z' ];
+
+
+      final data = new EnumData();
+
+      data.name.gds = 'Axis';
+
+      data.name.hx = '${ type.name.hx }_Axis';
+
+      data.values = [ for ( index => axis in axes ) new EnumValueData().tap( _ -> {
+
+        _.name.hx = axis;
+
+        _.value = '${ index }';
+
+      } ) ];
+
+      type.enums.push( data );
+
+
+      if ( type.name.hx == 'Vector2' ) return;
+
+      final getter = type.methods.iter().find( _ -> _.name.hx == 'getAxis' )!;
+
+      final setter = type.methods.iter().find( _ -> _.name.hx == 'setAxis' )!;
+
+      for ( index => axis in axes ) {
+
+        type.properties.push( new PropertyData().tap( _ -> {
+
+          _.name.hx = axis.toLowerCase();
+
+          _.getter = getter;
+
+          _.setter = setter;
+
+          _.index = index;
+
+        } ) );
+
+      }
+
+    case _:
+
+  }
+
+}
+
+
+function fixHaxe( coreType: CoreTypeData, definition: ToTypeDefinition ) {
+
+  switch ( coreType.name.hx ) {
+
+    case 'Dictionary':
+
+      definition.fields.iter().find( _ -> _.name == 'set' )!.meta!.push( geMeta( macro @:op( [] ) _ ) );
+
+    case 'GdArray':
+
+      definition.fields.iter().find( _ -> _.name == 'set' )!.meta!.push( geMeta( macro @:op( [] ) _ ) );
+
+    case 'PoolByteArray' | 'PoolColorArray' | 'PoolIntArray' | 'PoolRealArray' | 'PoolStringArray' | 'PoolVector2Array' | 'PoolVector3Array':
+
+      definition.fields.iter().find( _ -> _.name == 'get' || _.name == 'set' )!.meta!.push( geMeta( macro @:op( [] ) _ ) );
+
+    case 'Variant':
+
+      for ( field in definition.fields ) {
 
         if ( field.name.hasPrefix( 'as' ) ) field.meta!.push( meta( ':to' ) );
 
@@ -68,29 +131,6 @@ function fixHaxe( coreType: CoreTypeData, definitions: Array< ToTypeDefinition >
           case _:
 
         }
-
-      }
-
-    case 'Vector3':
-
-      definitions.push( HaxeTools.makeEnum( 'Axis', [
-
-        { name: 'X', value: '0' },
-
-        { name: 'Y', value: '1' },
-
-        { name: 'Z', value: '2' },
-
-      ] ) );
-
-
-      final getter = coreType.methods.iter().find( _ -> _.name.hx == 'getAxis' )!;
-
-      final setter = coreType.methods.iter().find( _ -> _.name.hx == 'setAxis' )!;
-
-      for ( index => name in [ 'x', 'y', 'z' ] ) {
-
-        HaxeTools.addMemberFields( definitions[ 0 ], name, getter, setter, index, null );
 
       }
 

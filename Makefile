@@ -25,6 +25,16 @@ generate:
 
 #
 
+regenerate:
+
+	@rm -rf sources/c/gen
+
+	@rm -rf sources/lib/sources
+
+	@make generate
+
+#
+
 
 define check_env
 
@@ -63,11 +73,11 @@ define clone_git
 
 endef
 
-inputs: inputs/hashlink inputs/godot inputs/godot_headers inputs/hashlink/libhl.dylib
+inputs: inputs/godot inputs/godot-headers inputs/hashlink inputs/hashlink/libhl.dylib
 
-inputs/godot_headers: ; $(call clone_git,$@,godotengine/godot_headers,3.2)
+inputs/godot: ; $(call clone_git,$@,godotengine/godot,3.2.3-stable)
 
-inputs/godot: ; $(call clone_git,$@,godotengine/godot,3.2)
+inputs/godot-headers: ; $(call clone_git,$@,godotengine/godot-headers,3.2)
 
 inputs/hashlink: ; $(call clone_git,$@,HaxeFoundation/hashlink)
 
@@ -84,7 +94,7 @@ clean:
 
 	@rm -rf sources/c/gen
 
-	@rm -rf sources/lib/gen
+	@rm -rf sources/lib/sources
 
 	@rm -f demo/gh.hdll demo/hlboot.dat
 
@@ -99,4 +109,4 @@ reset: clean
 #
 
 
-.PHONY: all hdll generate demo_edit demo_run clean reset
+.PHONY: all hdll generate regenerate demo_edit demo_run clean reset

@@ -10,13 +10,9 @@ using vhx.ds.MapTools;
 
 using vhx.str.StringTools;
 
-using vhx.iter.IterTools;
+import common.data.*;
 
-import common.Data;
-
-import core.Data;
-
-import object.Data;
+import common.Docs;
 
 
 typedef ObjectJson = {
@@ -98,31 +94,28 @@ typedef ObjectJson = {
 };
 
 
-function getObjectType() {
-
-  final type = new ObjectTypeData();
-
-  type.name.gds = 'Object';
-
-  type.name.hx = 'Object';
-
-  type.isInstanciable = true;
-
-  return type;
-
-}
-
-
 function getObjectTypes( primitiveTypes: Array< PrimitiveTypeData >, objectType: ObjectTypeData, coreTypes: Array< CoreTypeData > ) {
 
-  final basicTypes = new Map< String, TypeData >();
+  final gdsTypes = new Map< String, TypeData >();
 
-  primitiveTypes.iter().map( _ -> { key: _.name.gds, value: ( _: TypeData ) } ).toMapInto( basicTypes ); // TODO: find a way to remove value cast
+  for ( type in primitiveTypes ) gdsTypes[ type.name.gds ] = type;
 
-  coreTypes.iter().map( _ -> { key: _.name.gds, value: ( _: TypeData ) } ).toMapInto( basicTypes );
+  for ( type in coreTypes ) {
+
+    gdsTypes[ type.name.gds ] = type;
+
+    for ( data in type.enums ) {
+
+      gdsTypes[ 'enum.${ type.name.gds }::${ data.name.gds }' ] = data;
+
+      gdsTypes[ '${ type.name.gds }.${ data.name.gds }' ] = data;
+
+    }
+
+  }
 
 
-  final objectJsons: Array< ObjectJson > = Json.parse( File.getContent( 'inputs/godot_headers/api.json' ) );
+  final objectJsons: Array< ObjectJson > = Json.parse( File.getContent( 'inputs/godot-headers/api.json' ) );
 
   final objectTypes = [ for ( objectJson in objectJsons ) {
 
@@ -130,11 +123,35 @@ function getObjectTypes( primitiveTypes: Array< PrimitiveTypeData >, objectType:
 
       type.name.gds = objectJson.name;
 
-      type.name.hx = ~/[^A-Za-z0-9]/.replace( objectJson.name, '' ); // TODO: check if such names exist
+      type.name.hx = ~/[^A-Za-z0-9]/.replace( objectJson.name, '' );
 
       type.isInstanciable = objectJson.instanciable;
 
-      type.isSingleton = objectJson.singleton_name != ''; // TODO: check if singleton name can be different from name
+      type.isSingleton = objectJson.singleton_name != '';
+
+      type.enums = [ for ( enumJson in objectJson.enums ) new EnumData().tap( data -> {
+
+        data.name.gds = enumJson.name;
+
+        data.name.hx = '${ type.name.hx }_${ data.name.gds }';
+
+        data.values = [ for ( name => number in enumJson.values ) new EnumValueData().tap( value -> {
+
+          value.name.gds = name;
+
+          value.value = '${ number }';
+
+        } ) ];
+
+        data.nameValues();
+
+        gdsTypes[ 'enum.${ type.name.gds }::${ data.name.gds }' ] = data;
+
+        gdsTypes[ '${ type.name.gds }.${ data.name.gds }' ] = data;
+
+      } ) ];
+
+      gdsTypes[ type.name.gds ] = type;
 
     } );
 
@@ -142,14 +159,51 @@ function getObjectTypes( primitiveTypes: Array< PrimitiveTypeData >, objectType:
 
   objectTypes[ objectType.name.gds ] = objectType;
 
+  gdsTypes[ objectType.name.gds ] = objectType;
 
-  final getType = ( gdsName: String ) -> nil( basicTypes[ gdsName ] ).orMaybe( () -> objectTypes[ gdsName ] );
+
+  {
+
+    final type = objectTypes[ 'GlobalConstants' ];
+
+    final docs = new ClassDocs( '@GlobalScope' );
+
+    final groups = docs.constants().iter().key( _ -> _.enumed() ).filter( _ -> _.key != '' && ! _.key.contains( '.' ) ).toGroups();
+
+    type.enums = [ for ( name => constants in groups ) new EnumData().tap( data -> {
+
+      data.name.gds = name;
+
+      data.name.hx = name;
+
+      data.values = [ for ( constant in constants ) new EnumValueData().tap( value -> {
+
+        value.name.gds = constant.name();
+
+        value.value = constant.value();
+
+      } ) ];
+
+      data.nameValues();
+
+      gdsTypes[ 'enum.${ data.name.gds }' ] = data;
+
+      gdsTypes[ data.name.gds ] = data;
+
+    } ) ];
+
+  }
+
 
   for ( objectJson in objectJsons ) {
 
-    final objectType = objectTypes[ objectJson.name ];
+    final docs = new ClassDocs( objectJson.name == 'GlobalConstants' ? '@GlobalScope' : objectJson.name );
 
-    objectType.parent = objectTypes[ objectJson.base_class ];
+    final type = objectTypes[ objectJson.name ];
+
+    type.doc = docs.description();
+
+    type.parent = objectTypes[ objectJson.base_class ];
 
     for ( methodJson in objectJson.methods ) {
 
@@ -157,33 +211,25 @@ function getObjectTypes( primitiveTypes: Array< PrimitiveTypeData >, objectType:
 
       if ( methodJson.has_varargs ) continue; // TODO: handle varargs
 
-      final returnType = getType( methodJson.return_type );
+      final returns = new ValueData().tap( ( value ) -> {
 
-      if ( returnType == null ) continue; // TODO: check if any
+        value.type = gdsTypes[ methodJson.return_type ];
 
-      final signature = [ for ( argJson in methodJson.arguments ) {
+      } );
 
-        final type = getType( argJson.type )!;
-
-        if ( type == null ) break;
-
-        final value = new ValueData();
+      final arguments = [ for ( argJson in methodJson.arguments ) new ValueData().tap( ( value ) -> {
 
         value.name.gh = 'p_' + argJson.name;
 
         value.name.hx = value.name.gh.toCamelCase();
 
-        value.type = type;
+        value.type = gdsTypes[ argJson.type ];
 
         value.isPointer = type.isPointer;
 
-        value;
+      } ) ];
 
-      } ];
-
-      if ( signature.length != methodJson.arguments.length ) continue;
-
-      signature.unshift( new ValueData().tap( value -> value.type = returnType ) );
+      final docs = docs.methods().iter().find( _ -> _.name() == methodJson.name );
 
       final method = new MethodData();
 
@@ -191,21 +237,95 @@ function getObjectTypes( primitiveTypes: Array< PrimitiveTypeData >, objectType:
 
       method.name.hx = ( methodJson.name.charAt( 0 ) == '_' ? '_' : '' ) + methodJson.name.toCamelCase();
 
-      method.name.prim = '${ objectType.name.hx }_${ method.name.hx }';
+      if ( method.name.hx == 'import' ) method.name.hx = 'doImport';
+
+      if ( method.name.hx == 'getName' && type.name.hx == 'EditorSpatialGizmoPlugin' ) continue; // TODO: godot...
+
+      method.name.prim = '${ type.name.hx }_${ method.name.hx }';
 
       method.isVirtual = methodJson.is_virtual;
 
-      method.signature = signature;
+      method.signature = [ returns ].concat( arguments );
 
-      objectType.methods.push( method );
+      method.doc = docs.map( _ -> _.description() );
+
+      type.methods.push( method );
+
+      for ( index => docs in docs.map( _ -> _.arguments() ) ) {
+
+        final argument = arguments[ index ];
+
+        argument.type = docs.enumed().pipe( _ -> _ != '' ? gdsTypes[ _ ] : argument.type );
+
+        argument.defaults = docs.defaults();
+
+      }
 
     }
 
-    // public var properties = new Array< PropertyData >();
+  }
 
-    // public var signals = new Array< SignalData >();
+  for ( objectJson in objectJsons ) {
 
-    // public var enums = new Array< EnumData >();
+    final docs = new ClassDocs( objectJson.name == 'GlobalConstants' ? '@GlobalScope' : objectJson.name );
+
+    final type = objectTypes[ objectJson.name ];
+
+    function findMethod( type: ObjectTypeData, name: String ) {
+
+      final method = type.methods.iter().find( _ -> _.name.gds == name );
+
+      return method == null && type.parent != null ? findMethod( type.parent, name ) : method;
+
+    }
+
+    for ( propertyJson in objectJson.properties ) {
+
+      if ( propertyJson.name.contains( '/' ) ) continue;
+
+      final docs = docs.members().iter().find( _ -> _.name() == propertyJson.name );
+
+      final property = new PropertyData();
+
+      property.name.gds = propertyJson.name;
+
+      property.name.hx = property.name.gds.toCamelCase();
+
+      if ( property.name.hx == 'operator' ) property.name.hx = 'op';
+
+      if ( property.name.hx == 'function' ) property.name.hx = 'func';
+
+      if ( property.name.hx == 'rotate' && type.name.hx == 'PathFollow2D' ) property.name.hx = 'rotates'; // TODO: godot...
+
+      if ( property.name.hx == 'lightMask' && type.name.hx == 'LightOccluder2D' ) property.name.hx = 'occluderLightMask'; // TODO: godot...
+
+      property.getter = findMethod( type, propertyJson.getter );
+
+      property.setter = propertyJson.setter == '' ? null : findMethod( type, propertyJson.setter );
+
+      property.index = propertyJson.index;
+
+      property.doc = docs.map( _ -> _.description() );
+
+      if ( property.getter == null && type.name.gds == 'RootMotionView' ) continue; // TODO: godot...
+
+      type.properties.push( property );
+
+    }
+
+    for ( data in type.enums ) {
+
+      for ( value in data.values ) {
+
+        final docs = docs.constants().iter().find( _ -> _.name() == value.name.gds );
+
+        value.doc = docs.map( _ -> _.description() );
+
+      }
+
+    }
+
+    // TODO: signals, constants
 
   }
 

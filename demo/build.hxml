@@ -1,6 +1,3 @@
---class-path ../sources
 --class-path ../sources/lib/sources
---class-path ../sources/lib/gen/core
---class-path ../sources/lib/gen/object
 --main Main
 --hl hlboot.dat

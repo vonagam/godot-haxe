@@ -1,17 +1,14 @@
-import godot.GdHl;
-
-
 function main(): Void {
 
-  godot.Object.GdHlTagsSetup.run();
+  gd.hl.InitApi.init();
 
 
-  GdHl.registerClass( 'HaxeReference', 'Reference', () -> new HaxeReference( false ), false, null );
+  gd.hl.Api.registerClass( 'HaxeReference', 'Reference', () -> new HaxeReference( false ), false, null );
 
 
-  GdHl.registerClass( 'HaxeNode', 'Node', () -> new HaxeNode( false ), false, null );
+  gd.hl.Api.registerClass( 'HaxeNode', 'Node', () -> new HaxeNode( false ), false, null );
 
-  GdHl.registerMethod( 'HaxeNode', 'hello', function( node: Any, args: hl.NativeArray< godot.Variant > ): godot.Variant {
+  gd.hl.Api.registerMethod( 'HaxeNode', 'hello', function( node: Any, args: hl.NativeArray< gd.Variant > ): gd.Variant {
 
     trace( args[ 0 ].asReal() );
 
@@ -21,20 +18,20 @@ function main(): Void {
 
   }, 0, null );
 
-  GdHl.registerProperty( 'HaxeNode', 'prop', function( node: Any ): godot.Variant {
+  gd.hl.Api.registerProperty( 'HaxeNode', 'prop', function( node: Any ): gd.Variant {
 
     return ( node: HaxeNode ).prop;
 
-  }, function( node: Any, variant: godot.Variant ) {
+  }, function( node: Any, variant: gd.Variant ) {
 
     ( node: HaxeNode ).prop = variant;
 
-  }, godot.Variant.Type.INT, 4, 1 + 2, 0, "", 0, null );
+  }, gd.Variant_Type.INT, 4, 1 + 2, 0, "", 0, null );
 
 }
 
 
-class HaxeNode extends godot.Node {
+class HaxeNode extends gd.Node {
 
   public var prop: Int = 4;
 
@@ -42,44 +39,44 @@ class HaxeNode extends godot.Node {
 
     super( false );
 
-    if ( doConstruct ) GdHl.constructScript( this, 'Node', 'HaxeNode' );
+    if ( doConstruct ) gd.hl.Api.constructScript( this, 'Node', 'HaxeNode' );
 
     trace( "HaxeNode is constructed." );
 
   }
 
-  public function hello(): godot.Vector2 {
+  public function hello(): gd.String {
 
-    final child = new godot.Node();
+    final child = new gd.Node();
 
-    this.addChild( child, true );
+    this.addChild( child );
 
     final references = new HaxeReference();
 
-    final vectorOne = new godot.Vector2( 1, 2 );
+    final vectorOne = new gd.Vector2( 1, 2 );
 
-    final vectorTwo = new godot.Vector2( 3, 4 );
+    final vectorTwo = new gd.Vector2( 3, 4 );
 
     final vectorThree = vectorOne + vectorTwo;
 
-    trace( vectorThree.y );
+    // trace( vectorThree.y );
 
-    trace( "Hello from Haxe." );
+    trace( prop );
 
-    return vectorThree;
+    return this.getClass();
 
   }
 
 }
 
 
-class HaxeReference extends godot.Reference {
+class HaxeReference extends gd.Reference {
 
   public function new( doConstruct: Bool = true ) {
 
     super( false );
 
-    if ( doConstruct ) GdHl.constructScript( this, 'Reference', 'HaxeReference' );
+    if ( doConstruct ) gd.hl.Api.constructScript( this, 'Reference', 'HaxeReference' );
 
     trace( "HaxeReference is constructed." );
 

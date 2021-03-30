@@ -94,6 +94,8 @@ static bool gh_object_init_reference( godot_object *owner ) {
 
 gh_gc_root gh_object_new( godot_object *owner, vclosure *construct ) {
 
+  if ( gdnative_in_init ) hl_fatal( "Cannot work with objects during initialization." ); // to avoid calling finalizers on external ones
+
   // object can be create either on godot's side or haxe's
 
   gh_object *object = gh_construct_take_pending( owner ); // find if it is originated on haxe's

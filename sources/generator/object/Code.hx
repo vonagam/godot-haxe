@@ -2,15 +2,11 @@ package object;
 
 import sys.FileSystem;
 
-import sys.io.File;
-
-import common.Data;
+import common.data.*;
 
 import common.Code;
 
-using common.Code.CodeTools;
-
-import object.Data;
+using object.DefaultsTools;
 
 
 function writeObjectCode( objectTypes: Array< ObjectTypeData > ) {
@@ -23,7 +19,17 @@ function writeObjectCode( objectTypes: Array< ObjectTypeData > ) {
 
   cCode << '#include "./core.h"\n\n';
 
+  cCode << '#include "../defaults.h"\n\n';
+
   cCode << '\n';
+
+
+  final defaults = objectTypes.collectDefaults();
+
+  cCode << defaults.getInitCode();
+
+  cCode << '\n';
+
 
   final that = new ValueData().tap( _ -> { _.name.gh = 'that'; _.isPointer = true; } );
 
@@ -43,21 +49,37 @@ function writeObjectCode( objectTypes: Array< ObjectTypeData > ) {
 
       final thated = thated.concat( arguments );
 
-      cCode << CodeTools.ghSignature( returns, method, thated );
+      cCode << method.cSignature( returns, thated );
+
+      for ( argument in arguments ) {
+
+        cCode << argument.getDefaultsCode( defaults );
+
+      }
 
       if ( returns.type.name.gdn != 'void' ) {
 
-        cCode << '  ${ returns.type.name.gdn }${ returns.type.name.gdn == 'godot_object' ? '*' : '' } gd_return;\n\n';
+        cCode << '  ${ returns.type.name.gdn }${ returns.type.name.gdn == 'godot_object' ? '*' : '' } gd_return;';
+
+        cCode << ' memset( &gd_return, 0, sizeof( gd_return ) );\n\n'; // TODO: godot... issues/34264
 
       }
 
       if ( arguments.length > 0 ) {
 
-        cCode << '  const void *args[] = { ${ arguments.map( _ ->
+        cCode << '  const void *args[] = { ${
 
-          '${ _.type.isPointer ? '' : '&' }${ _.name.gh }${ _.type.unwrap }'
+          arguments.map( _ -> {
 
-        ).join( ', ' ) } };\n\n';
+            final arg = '${ _.type.isPointer ? '' : '&' }${ _.name.gh }${ _.type.unwrap }';
+
+            if ( _.defaults == 'null' && _.type.unwrap != '' ) return '${ _.name.gh } == NULL ? NULL : ${ arg }';
+
+            return arg;
+
+          } ).join( ', ' )
+
+        } };\n\n';
 
       }
 
@@ -73,7 +95,7 @@ function writeObjectCode( objectTypes: Array< ObjectTypeData > ) {
 
       cCode << '}\n\n';
 
-      cCode << CodeTools.primSignature( returns, method, thated );
+      cCode << method.primSignature( returns, thated );
 
       cCode << '\n';
 
@@ -81,6 +103,6 @@ function writeObjectCode( objectTypes: Array< ObjectTypeData > ) {
 
   }
 
-  File.saveContent( 'sources/c/gen/object.c', cCode );
+  cCode >> 'object.c';
 
 }
