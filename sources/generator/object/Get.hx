@@ -239,7 +239,7 @@ function getObjectTypes( primitiveTypes: Array< PrimitiveTypeData >, objectType:
 
       if ( method.name.hx == 'import' ) method.name.hx = 'doImport';
 
-      if ( method.name.hx == 'getName' && type.name.hx == 'EditorSpatialGizmoPlugin' ) continue; // TODO: godot...
+      if ( method.name.hx == 'getName' && type.name.hx == 'EditorSpatialGizmoPlugin' ) continue; // TODO: clash, fixed in godot 4
 
       method.name.prim = '${ type.name.hx }_${ method.name.hx }';
 
@@ -257,7 +257,7 @@ function getObjectTypes( primitiveTypes: Array< PrimitiveTypeData >, objectType:
 
         argument.type = docs.enumed().pipe( _ -> _ != '' ? gdsTypes[ _ ] : argument.type );
 
-        argument.defaults = docs.defaults();
+        ConstantData.setDefaults( argument, docs );
 
       }
 
@@ -295,9 +295,9 @@ function getObjectTypes( primitiveTypes: Array< PrimitiveTypeData >, objectType:
 
       if ( property.name.hx == 'function' ) property.name.hx = 'func';
 
-      if ( property.name.hx == 'rotate' && type.name.hx == 'PathFollow2D' ) property.name.hx = 'rotates'; // TODO: godot...
+      if ( property.name.hx == 'rotate' && type.name.hx == 'PathFollow2D' ) property.name.hx = 'rotates'; // TODO: clash, fixed in godot 4
 
-      if ( property.name.hx == 'lightMask' && type.name.hx == 'LightOccluder2D' ) property.name.hx = 'occluderLightMask'; // TODO: godot...
+      if ( property.name.hx == 'lightMask' && type.name.hx == 'LightOccluder2D' ) property.name.hx = 'occluderLightMask'; // TODO: clash, fixed in godot 4
 
       property.getter = findMethod( type, propertyJson.getter );
 
@@ -325,7 +325,9 @@ function getObjectTypes( primitiveTypes: Array< PrimitiveTypeData >, objectType:
 
     }
 
-    // TODO: signals, constants
+    ConstantData.setConstants( type, docs, primitiveTypes, coreTypes );
+
+    // TODO: signals
 
   }
 

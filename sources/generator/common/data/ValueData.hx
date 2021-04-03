@@ -13,7 +13,7 @@ class ValueData {
 
   public var isPointer = false;
 
-  public var defaults = '';
+  public var defaults: Null< ConstantData > = null;
 
 
   public function new() {}
@@ -37,15 +37,15 @@ class ValueDataTools {
 
   public static function ghArg( value: ValueData )
 
-    return value.defaults == '' || value.type.isPointer ? ghVariable( value ) : 'vdynamic * o${ value.name.gh }';
+    return value.defaults == null || value.type.isPointer ? ghVariable( value ) : 'vdynamic * o${ value.name.gh }';
 
   public static function ghPrim( value: ValueData )
 
-    return value.defaults == '' || value.type.isPointer ? value.type.name.prim : '_NULL( ${ value.type.name.prim } )';
+    return value.defaults == null || value.type.isPointer ? value.type.name.prim : '_NULL( ${ value.type.name.prim } )';
 
   public static function hxArg( value: ValueData )
 
-    return arg( ( value.defaults == '' ? '' : '?' ) + value.name.hx, tPath( value.type.name.hx ) );
+    return arg( ( value.defaults == null ? '' : '?' ) + value.name.hx, tPath( value.type.name.hx ) );
 
   public static function ghUnwrap( value: ValueData ) {
 

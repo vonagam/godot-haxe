@@ -6,8 +6,6 @@ import common.data.*;
 
 import common.Code;
 
-using object.DefaultsTools;
-
 
 function writeObjectCode( objectTypes: Array< ObjectTypeData > ) {
 
@@ -24,11 +22,9 @@ function writeObjectCode( objectTypes: Array< ObjectTypeData > ) {
   cCode << '\n';
 
 
-  final defaults = objectTypes.collectDefaults();
+  final defaults = ConstantData.collectDefaults( objectTypes );
 
-  cCode << defaults.getInitCode();
-
-  cCode << '\n';
+  cCode << ConstantData.cDefaultsInit( defaults );
 
 
   final that = new ValueData().tap( _ -> { _.name.gh = 'that'; _.isPointer = true; } );
@@ -53,7 +49,7 @@ function writeObjectCode( objectTypes: Array< ObjectTypeData > ) {
 
       for ( argument in arguments ) {
 
-        cCode << argument.getDefaultsCode( defaults );
+        cCode << argument.defaults.cDefaultsUse( argument );
 
       }
 
@@ -73,7 +69,11 @@ function writeObjectCode( objectTypes: Array< ObjectTypeData > ) {
 
             final arg = '${ _.type.isPointer ? '' : '&' }${ _.name.gh }${ _.type.unwrap }';
 
-            if ( _.defaults == 'null' && _.type.unwrap != '' ) return '${ _.name.gh } == NULL ? NULL : ${ arg }';
+            if ( _.defaults != null && _.defaults.value == 'null' && _.type.unwrap != '' ) {
+
+              return '${ _.name.gh } == NULL ? NULL : ${ arg }';
+
+            }
 
             return arg;
 
@@ -98,6 +98,12 @@ function writeObjectCode( objectTypes: Array< ObjectTypeData > ) {
       cCode << method.primSignature( returns, thated );
 
       cCode << '\n';
+
+    }
+
+    for ( constant in type.constants ) {
+
+      cCode << constant.cGetter( type );
 
     }
 

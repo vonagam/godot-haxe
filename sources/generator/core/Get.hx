@@ -183,6 +183,8 @@ function getCoreTypes( primitiveTypes: Array< PrimitiveTypeData >, objectType: T
 
     if ( signature.length != func.signature.length ) continue;
 
+    if ( func.name == 'gray' ) continue; // TODO: clash, fixed in godot 4
+
     final method = new MethodData();
 
     method.name.gdn = func.name;
@@ -205,8 +207,6 @@ function getCoreTypes( primitiveTypes: Array< PrimitiveTypeData >, objectType: T
   for ( type in coreTypes ) {
 
     final docs = new ClassDocs( type.name.gds );
-
-    if ( docs == null ) continue;
 
     type.doc = docs.description();
 
@@ -252,7 +252,7 @@ function getCoreTypes( primitiveTypes: Array< PrimitiveTypeData >, objectType: T
 
     }
 
-    // TODO: constants
+    ConstantData.setConstants( type, docs, primitiveTypes, coreTypes );
 
     fixType( type );
 

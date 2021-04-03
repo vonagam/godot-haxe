@@ -1,7 +1,5 @@
 package common.data;
 
-import sys.io.File;
-
 import haxe.macro.Expr;
 
 using vhx.str.StringTools;

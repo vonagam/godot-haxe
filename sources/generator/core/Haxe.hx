@@ -35,13 +35,17 @@ function writeCoreHaxe( coreTypes: Array< CoreTypeData > ) {
 
     } );
 
-
     for ( property in type.properties ) {
 
       property.defineIn( definition );
 
     }
 
+    for ( constant in type.constants ) {
+
+      constant.defineIn( definition );
+
+    }
 
     for ( method in type.methods ) {
 
@@ -70,7 +74,6 @@ function writeCoreHaxe( coreTypes: Array< CoreTypeData > ) {
       definition.fields.push( field );
 
     }
-
 
     fixHaxe( type, definition );
 

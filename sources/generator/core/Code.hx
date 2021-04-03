@@ -93,6 +93,12 @@ function writeCoreCode( coreTypes: Array< CoreTypeData > ) {
 
     }
 
+    for ( constant in type.constants ) {
+
+      cCode << constant.cGetter( type );
+
+    }
+
   }
 
 

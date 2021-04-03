@@ -87,7 +87,7 @@ abstract ValueDocs( Access ) from Access to Access {
 
   public inline function defaults()
 
-    return this.has.resolve( 'default' ) ? this.att.resolve( 'default' ) : '';
+    return this.has.resolve( 'default' ) ? this.att.resolve( 'default' ) : null;
 
 }
 

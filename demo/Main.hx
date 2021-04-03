@@ -57,9 +57,9 @@ class HaxeNode extends gd.Node {
 
     final vectorTwo = new gd.Vector2( 3, 4 );
 
-    final vectorThree = vectorOne + vectorTwo;
+    final vectorThree = vectorOne + vectorTwo + gd.Vector2.UP * 2;
 
-    // trace( vectorThree.y );
+    trace( vectorThree.y );
 
     trace( prop );
 

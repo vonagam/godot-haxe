@@ -70,6 +70,12 @@ function writeObjectHaxe( objectTypes: Array< ObjectTypeData > ) {
 
     }
 
+    for ( constant in type.constants ) {
+
+      constant.defineIn( definition );
+
+    }
+
 
     {
 

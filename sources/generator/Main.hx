@@ -4,9 +4,9 @@ import object.Get;
 
 import core.Code;
 
-import core.Haxe;
-
 import object.Code;
+
+import core.Haxe;
 
 import object.Haxe;
 
