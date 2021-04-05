@@ -47,6 +47,8 @@ class PrimitiveTypeDataTools {
 
         _.name.prim = '_I8';
 
+        _.variant = 'uint';
+
       } ),
 
       new PrimitiveTypeData().tap( _ -> {
@@ -63,6 +65,8 @@ class PrimitiveTypeDataTools {
 
         _.name.prim = '_I32';
 
+        _.variant = 'int';
+
       } ),
 
       new PrimitiveTypeData().tap( _ -> {
@@ -76,6 +80,8 @@ class PrimitiveTypeDataTools {
         _.name.hx = 'UInt';
 
         _.name.prim = '_I32';
+
+        _.variant = 'uint';
 
       } ),
 
@@ -91,6 +97,8 @@ class PrimitiveTypeDataTools {
 
         _.name.prim = '_I32';
 
+        _.variant = 'int';
+
       } ),
 
       new PrimitiveTypeData().tap( _ -> {
@@ -104,6 +112,8 @@ class PrimitiveTypeDataTools {
         _.name.hx = 'UInt';
 
         _.name.prim = '_I32';
+
+        _.variant = 'uint';
 
       } ),
 
@@ -121,6 +131,8 @@ class PrimitiveTypeDataTools {
 
         _.name.prim = '_BOOL';
 
+        _.variant = 'bool';
+
       } ),
 
       new PrimitiveTypeData().tap( _ -> {
@@ -137,6 +149,8 @@ class PrimitiveTypeDataTools {
 
         _.name.prim = '_F32';
 
+        _.variant = 'real';
+
       } ),
 
       new PrimitiveTypeData().tap( _ -> {
@@ -150,6 +164,8 @@ class PrimitiveTypeDataTools {
         _.name.hx = 'Float';
 
         _.name.prim = '_F64';
+
+        _.variant = 'real';
 
       } ),
 
@@ -166,6 +182,8 @@ class PrimitiveTypeDataTools {
 
         _.name.prim = '_I32';
 
+        _.variant = 'int';
+
       } ),
 
       new PrimitiveTypeData().tap( _ -> {
@@ -179,6 +197,8 @@ class PrimitiveTypeDataTools {
         _.name.hx = 'Variant_Type';
 
         _.name.prim = '_I32';
+
+        _.variant = 'int';
 
       } ),
 

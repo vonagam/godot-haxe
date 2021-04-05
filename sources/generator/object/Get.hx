@@ -209,8 +209,6 @@ function getObjectTypes( primitiveTypes: Array< PrimitiveTypeData >, objectType:
 
       if ( methodJson.name == 'new' ) continue;
 
-      if ( methodJson.has_varargs ) continue; // TODO: handle varargs
-
       final returns = new ValueData().tap( ( value ) -> {
 
         value.type = gdsTypes[ methodJson.return_type ];
@@ -244,6 +242,8 @@ function getObjectTypes( primitiveTypes: Array< PrimitiveTypeData >, objectType:
       method.name.prim = '${ type.name.hx }_${ method.name.hx }';
 
       method.isVirtual = methodJson.is_virtual;
+
+      method.hasVarArg = methodJson.has_varargs;
 
       method.signature = [ returns ].concat( arguments );
 

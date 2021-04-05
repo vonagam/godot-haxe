@@ -13,6 +13,8 @@ class MethodData {
 
   public var isVirtual = false;
 
+  public var hasVarArg = false;
+
   public var signature = new Array< ValueData >();
 
   public var callee = '';
@@ -38,43 +40,33 @@ class MethodDataTools {
 
   public static function hSignature( method: MethodData, returns: ValueData, arguments: Array< ValueData > ) {
 
-    return (
+    final args = arguments.map( _ -> _.ghArg() );
 
-      '${ returns.ghType() }HL_NAME( ${ method.name.prim } )( ${
+    if ( method.hasVarArg ) args.push( 'varray *p_args' );
 
-        arguments.map( _ -> _.ghArg() ).join( ', ' )
-
-      } );\n\n'
-
-    );
+    return '${ returns.ghType() }HL_NAME( ${ method.name.prim } )( ${ args.join( ', ' ) } );\n\n';
 
   }
 
   public static function cSignature( method: MethodData, returns: ValueData, arguments: Array< ValueData > ) {
 
-    return (
+    final args = arguments.map( _ -> _.ghArg() );
 
-      'HL_PRIM ${ returns.ghType() }HL_NAME( ${ method.name.prim } )( ${
+    if ( method.hasVarArg ) args.push( 'varray *p_args' );
 
-        arguments.map( _ -> _.ghArg() ).join( ', ' )
-
-      } ) {\n\n'
-
-    );
+    return 'HL_PRIM ${ returns.ghType() }HL_NAME( ${ method.name.prim } )( ${ args.join( ', ' ) } ) {\n\n';
 
   }
 
   public static function primSignature( method: MethodData, returns: ValueData, arguments: Array< ValueData > ) {
 
-    return (
+    final args = arguments.map( _ -> _.ghPrim() );
 
-      'DEFINE_PRIM( ${ returns.type.name.prim }, ${ method.name.prim }, ${
+    if ( method.hasVarArg ) args.push( '_ARR' );
 
-        arguments.length == 0 ? '_NO_ARG' : arguments.map( _ -> _.ghPrim() ).join( ' ' )
+    if ( args.length == 0 ) args.push( '_NO_ARG' );
 
-      } );\n\n'
-
-    );
+    return 'DEFINE_PRIM( ${ returns.type.name.prim }, ${ method.name.prim }, ${ args.join( ' ' ) } );\n\n';
 
   }
 

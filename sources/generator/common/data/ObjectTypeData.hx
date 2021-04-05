@@ -24,6 +24,8 @@ class ObjectTypeData extends ClassTypeData {
 
     unwrap = '->data->owner';
 
+    variant = 'object';
+
   }
 
 
@@ -41,8 +43,6 @@ class ObjectTypeDataTools {
   public static function getObjectType() {
 
     return new ObjectTypeData().tap( _ -> {
-
-      _.name.gdn = 'godot_object';
 
       _.name.gds = 'Object';
 

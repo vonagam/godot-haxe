@@ -120,6 +120,8 @@ function getCoreTypes( primitiveTypes: Array< PrimitiveTypeData >, objectType: T
 
         type.allocate = 'hl_gc_alloc_noptr( sizeof( ${ gdnName } ) )';
 
+        type.variant = gdnName.removePrefix( 'godot_' );
+
         gdnTypes[ type.name.gdn ] = type;
 
       } ) );

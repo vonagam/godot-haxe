@@ -9,6 +9,8 @@ class TypeData {
 
   public var unwrap = '';
 
+  public var variant = '';
+
 
   public function ghReturn( returns: ValueData )
 
