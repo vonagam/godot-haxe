@@ -21,7 +21,7 @@ import core.Fix;
 
 function writeCoreHaxe( coreTypes: Array< CoreTypeData > ) {
 
-  FileSystem.createDirectory( 'sources/lib/sources/gd' );
+  FileSystem.createDirectory( 'sources/lib/sources.core/gd' );
 
   for ( type in coreTypes ) {
 
@@ -77,9 +77,9 @@ function writeCoreHaxe( coreTypes: Array< CoreTypeData > ) {
 
     fixHaxe( type, definition );
 
-    definition.output();
+    definition.output( 'core' );
 
-    for ( data in type.enums ) data.toDefinition().output();
+    for ( data in type.enums ) data.toDefinition().output( 'core' );
 
   }
 

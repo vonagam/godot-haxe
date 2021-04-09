@@ -44,9 +44,9 @@ void gh_construct_free() {
 
 // construct godot object and set it up for pairing with haxe object
 
-static godot_object *gh_construct_owner( gh_object *object, const char *godot_class_name ) {
+static godot_object *gh_construct_owner( gh_object *object, const char *owner_class_name ) {
 
-  godot_class_constructor owner_constructor = gdnative_core->godot_get_class_constructor( godot_class_name );
+  godot_class_constructor owner_constructor = gdnative_core->godot_get_class_constructor( owner_class_name );
 
   godot_object *owner = owner_constructor();
 
@@ -59,9 +59,9 @@ static godot_object *gh_construct_owner( gh_object *object, const char *godot_cl
 
 // construct instance of godot object class
 
-HL_PRIM void HL_NAME( construct_binding )( gh_object *object, vstring *godot_class_name ) {
+HL_PRIM void HL_NAME( construct_binding )( gh_object *object, vstring *owner_class_name ) {
 
-  godot_object *owner = gh_construct_owner( object, hl_chars( godot_class_name ) );
+  godot_object *owner = gh_construct_owner( object, hl_chars( owner_class_name ) );
 
   gdnative_nativescript_1_1->godot_nativescript_get_instance_binding_data( gdnative_language, owner );
 
@@ -72,7 +72,7 @@ DEFINE_PRIM( _VOID, construct_binding, _GH_OBJECT _STRING );
 
 // construct instance of library registered class
 
-HL_PRIM void HL_NAME( construct_script )( gh_object *object, vstring *godot_class_name, vstring *library_class_name ) {
+HL_PRIM void HL_NAME( construct_script )( gh_object *object, vstring *owner_class_name, vstring *script_class_name ) {
 
   STATIC_CONSTRUCTOR_BIND( script_new, NativeScript );
 
@@ -93,7 +93,7 @@ HL_PRIM void HL_NAME( construct_script )( gh_object *object, vstring *godot_clas
 
     gdnative_core->godot_string_new( &arg0 );
 
-    gdnative_core->godot_string_parse_utf8( &arg0, hl_chars( library_class_name ) );
+    gdnative_core->godot_string_parse_utf8( &arg0, hl_chars( script_class_name ) );
 
     gdnative_core->godot_method_bind_ptrcall( script_set_class_name, script, ( const void *[] ) { &arg0 }, NULL );
 
@@ -102,7 +102,7 @@ HL_PRIM void HL_NAME( construct_script )( gh_object *object, vstring *godot_clas
   }
 
 
-  godot_object *owner = gh_construct_owner( object, hl_chars( godot_class_name ) );
+  godot_object *owner = gh_construct_owner( object, hl_chars( owner_class_name ) );
 
   gdnative_core->godot_method_bind_ptrcall( owner_set_script, owner, ( const void *[] ) { script }, NULL );
 

@@ -37,7 +37,7 @@ class ValueDataTools {
 
   public static function ghArg( value: ValueData )
 
-    return value.defaults == null || value.type.isPointer ? ghVariable( value ) : 'vdynamic * o${ value.name.gh }';
+    return value.defaults == null || value.type.isPointer ? ghVariable( value ) : 'vdynamic *o${ value.name.gh }';
 
   public static function ghPrim( value: ValueData )
 

@@ -1,4 +1,4 @@
-package object;
+package objects;
 
 import sys.FileSystem;
 
@@ -155,6 +155,6 @@ function writeObjectCode( objectTypes: Array< ObjectTypeData > ) {
 
   }
 
-  cCode >> 'object.c';
+  cCode >> 'objects.c';
 
 }

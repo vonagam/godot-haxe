@@ -104,7 +104,7 @@ HL_PRIM void HL_NAME( register_class )(
 
   vstring *class_name,
 
-  vstring *owner_name,
+  vstring *parent_name,
 
   vclosure *construct,
 
@@ -120,7 +120,7 @@ HL_PRIM void HL_NAME( register_class )(
 
     hl_chars( class_name ),
 
-    hl_chars( owner_name ),
+    hl_chars( parent_name ),
 
     ( godot_instance_create_func ) { &gh_register_class_create, gh_gc_root_alloc( construct ), &gh_register_gc_root_free },
 
@@ -240,6 +240,8 @@ HL_PRIM void HL_NAME( register_method )(
     ( godot_instance_method ) { &gh_register_method_call, gh_gc_root_alloc( method ), &gh_register_gc_root_free }
 
   );
+
+  // TODO: godot_nativescript_set_method_argument_information
 
   if ( documentation != NULL ) {
 

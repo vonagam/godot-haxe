@@ -29,7 +29,9 @@ regenerate:
 
 	@rm -rf sources/c/gen
 
-	@rm -rf sources/lib/sources
+	@rm -rf sources/lib/sources.core
+
+	@rm -rf sources/lib/sources.objects
 
 	@make generate
 
@@ -94,7 +96,9 @@ clean:
 
 	@rm -rf sources/c/gen
 
-	@rm -rf sources/lib/sources
+	@rm -rf sources/lib/sources.core
+
+	@rm -rf sources/lib/sources.objects
 
 	@rm -f demo/gh.hdll demo/hlboot.dat
 

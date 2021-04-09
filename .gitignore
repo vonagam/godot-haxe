@@ -102,4 +102,5 @@ dump/
 /demo/hlboot.dat
 
 /sources/c/gen
-/sources/lib/sources
+/sources/lib/sources.core
+/sources/lib/sources.objects

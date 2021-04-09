@@ -1,51 +1,16 @@
 function main(): Void {
 
-  gd.hl.InitApi.init();
-
-
-  gd.hl.Api.registerClass( 'HaxeReference', 'Reference', () -> new HaxeReference( false ), false, null );
-
-
-  gd.hl.Api.registerClass( 'HaxeNode', 'Node', () -> new HaxeNode( false ), false, null );
-
-  gd.hl.Api.registerMethod( 'HaxeNode', 'hello', function( node: Any, args: hl.NativeArray< gd.Variant > ): gd.Variant {
-
-    trace( args[ 0 ].asReal() );
-
-    final node: HaxeNode = node;
-
-    return node.hello();
-
-  }, 0, null );
-
-  gd.hl.Api.registerProperty( 'HaxeNode', 'prop', function( node: Any ): gd.Variant {
-
-    return ( node: HaxeNode ).prop;
-
-  }, function( node: Any, variant: gd.Variant ) {
-
-    ( node: HaxeNode ).prop = variant;
-
-  }, gd.Variant_Type.INT, 4, 1 + 2, 0, "", 0, null );
+  gd.hl.Api.init();
 
 }
 
 
 class HaxeNode extends gd.Node {
 
-  public var prop: Int = 4;
+  @:gd var prop: Int = 4;
 
-  public function new( doConstruct: Bool = true ) {
 
-    super( false );
-
-    if ( doConstruct ) gd.hl.Api.constructScript( this, 'Node', 'HaxeNode' );
-
-    trace( "HaxeNode is constructed." );
-
-  }
-
-  public function hello(): gd.String {
+  @:gd function hello(): gd.String {
 
     final child = new gd.Node();
 
@@ -71,15 +36,5 @@ class HaxeNode extends gd.Node {
 
 
 class HaxeReference extends gd.Reference {
-
-  public function new( doConstruct: Bool = true ) {
-
-    super( false );
-
-    if ( doConstruct ) gd.hl.Api.constructScript( this, 'Reference', 'HaxeReference' );
-
-    trace( "HaxeReference is constructed." );
-
-  }
 
 }

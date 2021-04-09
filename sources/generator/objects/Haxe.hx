@@ -1,4 +1,4 @@
-package object;
+package objects;
 
 using StringTools;
 
@@ -14,18 +14,14 @@ import common.data.*;
 
 using common.HaxeTools;
 
-import object.Api;
-
 
 function writeObjectHaxe( objectTypes: Array< ObjectTypeData > ) {
 
-  FileSystem.createDirectory( 'sources/lib/sources/gd/hl' );
+  FileSystem.createDirectory( 'sources/lib/sources.objects/gd/hl' );
 
-  Api.writeApiHaxe( objectTypes );
+  final apiDefinition = dClass( { name: 'Objects' } );
 
-  final apiDefinition = dClass( { isExtern: true, name: 'ObjectsApi' } );
-
-  final eApi = macro gd.hl.ObjectsApi;
+  final eApi = macro gd.hl.Objects;
 
   final doConstructArgs = [ arg( 'doConstruct', tPath( 'Bool' ), { value: eBool( true ) } ) ];
 
@@ -43,6 +39,8 @@ function writeObjectHaxe( objectTypes: Array< ObjectTypeData > ) {
 
       doc: type.doc,
 
+      meta: [ meta( ':gd.native' ) ],
+
       name: name,
 
       extended: extended,
@@ -55,9 +53,13 @@ function writeObjectHaxe( objectTypes: Array< ObjectTypeData > ) {
 
     if ( name == 'Object' ) {
 
+      definition.meta!.push( geMeta( macro @:autoBuild( gd.hl.Macro.build() ) _ ) );
+
+      definition.meta!.push( meta( ':keepSub' ) );
+
       definition.fields.push( gdField( macro class {
 
-        private final ghData: hl.Abstract< 'gh_object_data' > = null;
+        @:keep private final ghData: hl.Abstract< 'gh_object_data' > = null;
 
       } ) );
 
@@ -81,7 +83,7 @@ function writeObjectHaxe( objectTypes: Array< ObjectTypeData > ) {
 
       final access = [ type.isInstanciable ? APublic : APrivate ];
 
-      final metas = type.isInstanciable ? [] : geMetas( macro @:allow( gd.hl.InitApi.init ) _ );
+      final metas = type.isInstanciable ? [] : geMetas( macro @:allow( gd.hl.Objects.init ) _ );
 
       final name = 'new';
 
@@ -114,13 +116,15 @@ function writeObjectHaxe( objectTypes: Array< ObjectTypeData > ) {
 
         final metas = method.metas();
 
-        final access = [ AStatic ];
+        final access = [ APublic, AStatic ];
 
         final apiArgs = [ arg( 'that', tPath( objectType.name.hx ) ) ].concat( args );
 
         if ( method.hasVarArg ) apiArgs.push( arg( 'pArgs', tPath( 'hl.NativeArray', [ tParam( 'gd.Variant' ) ] ) ) );
 
-        final field = fFun( apiName, apiArgs, type, { meta: metas, access: access } );
+        final body = eThrow( 8 );
+
+        final field = fFun( apiName, apiArgs, type, { meta: metas, access: access, body: body } );
 
         apiDefinition.fields.push( field );
 
@@ -177,12 +181,42 @@ function writeObjectHaxe( objectTypes: Array< ObjectTypeData > ) {
     }
 
 
-    if ( name != 'GlobalConstants' ) definition.output();
+    if ( name != 'GlobalConstants' ) definition.output( 'objects' );
 
-    for ( data in type.enums ) data.toDefinition().output();
+    for ( data in type.enums ) data.toDefinition().output( 'objects' );
 
   }
 
-  apiDefinition.output( true );
+  {
+
+    final types = objectTypes.filter( _ -> _.name.hx != 'GlobalConstants' );
+
+    apiDefinition.fields.push( gdField( macro class {
+
+      public static function init() {
+
+        final constructors = new hl.NativeArray< Api.ConstructorBind >( $v{ types.length } );
+
+        $b{ [ for ( index => type in types ) {
+
+          macro constructors[ $v{ index } ] = new Api.ConstructorBind(
+
+            $v{ type.name.gds },
+
+            () -> $e{ eNew( tyPath( 'gd.${ type.name.hx }' ), [ eBool( false ) ] ) }
+
+          );
+
+        } ] }
+
+        Api.bindConstructors( constructors );
+
+      }
+
+    } ) );
+
+  }
+
+  apiDefinition.output( 'objects', true );
 
 }

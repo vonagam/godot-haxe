@@ -1,14 +1,14 @@
 import core.Get;
 
-import object.Get;
+import objects.Get;
 
 import core.Code;
 
-import object.Code;
+import objects.Code;
 
 import core.Haxe;
 
-import object.Haxe;
+import objects.Haxe;
 
 
 function main() {

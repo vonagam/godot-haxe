@@ -9,7 +9,7 @@ import vhx.macro.Printer;
 
 class HaxeTools {
 
-  public static function output( definition: ToTypeDefinition, hl: Bool = false ) {
+  public static function output( definition: ToTypeDefinition, type: String, hl: Bool = false ) {
 
     final pack = hl ? 'gd.hl' : 'gd';
 
@@ -19,7 +19,7 @@ class HaxeTools {
 
     final haxe = 'package ${ pack };\n\n' + printer.printTypeDefinition( definition );
 
-    File.saveContent( 'sources/lib/sources/${ folder }/${ definition.name }.hx', haxe );
+    File.saveContent( 'sources/lib/sources.${ type }/${ folder }/${ definition.name }.hx', haxe );
 
   }
 
