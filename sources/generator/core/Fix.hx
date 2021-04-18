@@ -134,6 +134,50 @@ function fixHaxe( coreType: CoreTypeData, definition: ToTypeDefinition ) {
 
       }
 
+      final types = [
+
+        'NIL' => 'Nil',
+        'BOOL' => 'Bool',
+        'INT' => 'Int',
+        'REAL' => 'Real',
+        'STRING' => 'String',
+        'VECTOR2' => 'Vector2',
+        'RECT2' => 'Rect2',
+        'VECTOR3' => 'Vector3',
+        'TRANSFORM2D' => 'Transform2D',
+        'PLANE' => 'Plane',
+        'QUAT' => 'Quat',
+        'AABB' => 'Aabb',
+        'BASIS' => 'Basis',
+        'TRANSFORM' => 'Transform',
+        'COLOR' => 'Color',
+        'NODE_PATH' => 'NodePath',
+        'RID' => 'Rid',
+        'OBJECT' => 'Object',
+        'DICTIONARY' => 'Dictionary',
+        'ARRAY' => 'Array',
+        'RAW_ARRAY' => 'PoolByteArray',
+        'INT_ARRAY' => 'PoolIntArray',
+        'REAL_ARRAY' => 'PoolRealArray',
+        'STRING_ARRAY' => 'PoolStringArray',
+        'VECTOR2_ARRAY' => 'PoolVector2Array',
+        'VECTOR3_ARRAY' => 'PoolVector3Array',
+        'COLOR_ARRAY' => 'PoolColorArray'
+
+      ];
+
+      for ( value => name in types ) {
+
+        final name = 'is${ name }';
+
+        definition.fields.push( gdField( macro class {
+
+          public inline function $name(): Bool return getType() == Variant_Type.$value;
+
+        } ) );
+
+      }
+
     case _:
 
   }
