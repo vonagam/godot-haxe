@@ -1,6 +1,7 @@
 --class-path ../sources/lib/sources.api
 --class-path ../sources/lib/sources.core
 --class-path ../sources/lib/sources.objects
+--macro gd.hl.Macro.generate()
 --main Main
 --dce full
 --hl hlboot.dat

@@ -100,6 +100,7 @@ dump/
 /demo/libhl.dylib
 /demo/gh.hdll
 /demo/hlboot.dat
+/demo/gh
 
 /sources/c/gen
 /sources/lib/sources.core

@@ -16,50 +16,109 @@ import haxe.macro.Expr;
 
 import haxe.macro.Type;
 
+using haxe.macro.Tools;
 
-typedef GdParams = Array< Expr >;
+using gd.hl.Macro.Tools;
 
-typedef ClassInfo = {
 
-  classType: ClassType,
+class Tools {
 
-  typePath: TypePath,
+  public static inline function nullOr< T >( value: Null< T >, mapNull: () -> T ): T
 
-  complexType: ComplexType,
+    return value != null ? value : mapNull();
 
-  gdParams: GdParams,
+  public static inline function nullMap< T, R >( value: Null< T >, mapT: ( value: T ) -> R ): Null< R >
 
-  gdName: String,
+    return value != null ? mapT( value ) : null;
+
+  public static inline function nullTurn< T, R >( value: Null< T >, mapT: ( value: T ) -> R, mapNull: () -> R ): R
+
+    return value != null ? mapT( value ) : mapNull();
+
+  public static inline function nullIsTrue< T >( value: Null< T >, condition: ( value: T ) -> Bool )
+
+    return value != null ? condition( value ) == true : false;
+
+  public static inline function nullIsFalse< T >( value: Null< T >, condition: ( value: T ) -> Bool )
+
+    return value != null ? condition( value ) == false : false;
+
+
+  public static inline function pipe< T, R >( value: T, func: ( value: T ) -> R )
+
+    return func( value );
+
+  public static inline function tap< T >( value: T, func: ( value: T ) -> Void ) {
+
+    func( value );
+
+    return value;
+
+  }
 
 }
 
-typedef FieldInfo = {
 
-  classInfo: ClassInfo,
+class ClassData {
 
-  field: Field,
+  public var classType: ClassType;
 
-  gdParams: GdParams,
+  public var isNative: Bool;
 
-  gdName: String,
+  public var name: String;
+
+  public var owner: ClassData;
+
+
+  public function new() {}
 
 }
+
+class CustomClassData extends ClassData {
+
+  public var parent: ClassData;
+
+  public var tool: Bool;
+
+  public var typePath: TypePath;
+
+  public var complexType: ComplexType;
+
+
+  public function new() super();
+
+}
+
+class FieldData {
+
+  public var classData: CustomClassData;
+
+  public var field: Field;
+
+  public var params: Array< Expr >;
+
+  public var name: String;
+
+  public var rpc: String;
+
+
+  public function new() {}
+
+}
+
 
 #end
-
 
 class Macro {
 
   #if macro
 
-  static final registerSteps = new Array< Expr >();
+  public static final registerSteps = new Array< Expr >();
 
-  static var variantType: Type;
+  public static final names = new Array< String >();
 
-  static var objectType: Type;
 
   #end
-
 
   public static macro function register() {
 
@@ -67,88 +126,203 @@ class Macro {
 
   }
 
-
   #if macro
 
-  public static function build(): Array< Field > {
+
+  public static function build() {
+
+    Types.init( Context.currentPos() );
+
+    return ClassBuildTools.build();
+
+  }
+
+  public static function generate() {
+
+    if ( Sys.args().contains( '--no-output' ) ) return;
+
+    Context.onAfterGenerate( () -> {
+
+      sys.FileSystem.createDirectory( 'gh' );
+
+      final template = new haxe.Template(
+
+        '[gd_resource type="NativeScript" load_steps=2 format=2]\n\n' +
+
+        '[ext_resource path="res://gh.gdnlib" type="GDNativeLibrary" id=1]\n\n' +
+
+        '[resource]\n' +
+
+        'class_name = "::name::"\n' +
+
+        'library = ExtResource( 1 )\n'
+
+      );
+
+      for ( name in names ) {
+
+        final path = 'gh/${ name }.gdns';
+
+        final content = template.execute( { name: name } );
+
+        sys.io.File.saveContent( path, content );
+
+      }
+
+    } );
+
+  }
+
+  #end
+
+}
+
+#if macro
+
+
+class Types {
+
+  public static var Variant: Type;
+
+  public static var Object: Type;
+
+
+  public static function init( position: Position ) {
+
+    if ( Variant != null ) return;
+
+    Variant = Context.resolveType( TPath( { pack: [ 'gd' ], name: 'Variant' } ), position );
+
+    Object = Context.resolveType( TPath( { pack: [ 'gd' ], name: 'Object' } ), position );
+
+  }
+
+}
+
+
+class ClassDataTools {
+
+  static final datas = new Map< String, ClassData >();
+
+  static final names = new Map< String, ClassData >();
+
+
+  public static function get( classType: ClassType ) {
+
+    final id = '${ classType.module }.${ classType.name }';
+
+    if ( datas.exists( id ) ) return datas[ id ];
+
+
+    final classData = classType.meta.has( ':gd.native' )
+
+      ? makeNative( classType )
+
+      : makeCustom( classType );
+
+    datas[ id ] = classData;
+
+
+    final name = classData.name;
+
+    if ( names.exists( name ) ) throw 'Cannot have multiple classes named "${ name }".';
+
+    names[ name ] = classData;
+
+
+    return classData;
+
+  }
+
+
+  static function makeNative( classType: ClassType ) {
+
+    return new ClassData().tap( _ -> {
+
+      _.classType = classType;
+
+      _.isNative = true;
+
+      _.name = classType.name;
+
+      _.owner = _;
+
+    } );
+
+  }
+
+  static function makeCustom( classType: ClassType ) {
+
+    return new CustomClassData().tap( _ -> {
+
+      _.classType = classType;
+
+      _.isNative = false;
+
+      _.name = '${ classType.module }.${ classType.name }';
+
+      _.parent = get( classType.superClass.t.get() );
+
+      _.owner = _.parent.owner;
+
+      _.tool = false;
+
+      _.typePath = { pack: classType.pack, name: classType.module, sub: classType.name };
+
+      _.complexType = TPath( _.typePath );
+
+
+      var isNamed = false;
+
+      final params = classType.meta.extract( ':gd' )[ 0 ].nullMap( _ -> _.params );
+
+      if ( params != null ) for ( param in params ) switch ( param ) {
+
+        case macro tool, macro tool = true: _.tool = true;
+
+        case macro tool = false: _.tool = false;
+
+        case macro name = $e{ expr }:
+
+          _.name = expr.toString();
+
+          isNamed = true;
+
+        case _: throw 'Cannot understand godot class param "${ param.toString() }".';
+
+      }
+
+
+      if ( isNamed ) Macro.names.push( _.name );
+
+    } );
+
+  }
+
+}
+
+
+class ClassBuildTools {
+
+  public static function build() {
 
     final classType = Context.getLocalClass().get();
 
-    if ( isClassGdNative( classType ) ) return null;
+    final classData = ClassDataTools.get( classType );
+
+    if ( classData.isNative ) return null;
 
 
-    if ( variantType == null ) {
-
-      variantType = Context.resolveType( TPath( { pack: [ 'gd' ], name: 'Variant' } ), Context.currentPos() );
-
-      objectType = Context.resolveType( TPath( { pack: [ 'gd' ], name: 'Object' } ), Context.currentPos() );
-
-    }
-
-
-    final classInfo: ClassInfo = {
-
-      final typePath = getClassTypePath( classType );
-
-      final complexType = TPath( typePath );
-
-      final gdParams = getClassGdParams( classType );
-
-      final gdName = getGdName( classType.name, gdParams );
-
-      { classType: classType, typePath: typePath, complexType: complexType, gdParams: gdParams, gdName: gdName };
-
-    };
-
-    registerClass( classInfo );
-
+    final classData = ( cast classData: CustomClassData );
 
     final fields = Context.getBuildFields();
 
-    for ( field in fields ) {
 
-      if ( field.name == 'new' ) throw 'Cannot have a constructor in godot class. Use godot hooks.';
+    doRegister( classData );
 
-      final gdParams = getGdParams( field.meta );
+    doFields( classData, fields );
 
-      if ( gdParams == null ) continue;
-
-      field.access = or( field.access, [] );
-
-      final fieldInfo: FieldInfo = {
-
-        final gdName = getGdName( field.name, gdParams );
-
-        { classInfo: classInfo, field: field, gdParams: gdParams, gdName: gdName };
-
-      };
-
-      registerField( fieldInfo );
-
-    }
-
-
-    final constructor = {
-
-      final classGdName = classInfo.gdName;
-
-      final ownerGdName = getOwnerGdName( classType );
-
-      ( macro class {
-
-        public function new( doConstruct: Bool = true ) {
-
-          super( false );
-
-          if ( doConstruct ) gd.hl.Api.constructScript( this, $v{ ownerGdName }, $v{ classGdName } );
-
-        }
-
-      } ).fields[ 0 ];
-
-    };
-
-    fields.push( constructor );
+    doConstructor( classData, fields );
 
 
     return fields;
@@ -156,162 +330,169 @@ class Macro {
   }
 
 
-  static inline function or< T >( value: Null< T >, fallback: T ): T {
+  static function doRegister( classData: CustomClassData ) {
 
-    return value != null ? value : fallback;
+    final typePath = classData.typePath;
 
-  }
+    Macro.registerSteps.push( macro gd.hl.Api.registerClass(
 
+      $v{ classData.name },
 
-  static function getGdParams( metas: Null< Metadata > ) {
+      $v{ classData.parent.name },
 
-    if ( metas != null ) for ( meta in metas ) if ( meta.name == ':gd' ) return or( meta.params, [] );
+      () -> new $typePath( false ),
 
-    return null;
+      $v{ classData.tool },
 
-  }
-
-  static function getGdName( name: String, gdParams: Null< GdParams > ) {
-
-    if ( gdParams == null ) return name;
-
-    for ( param in gdParams ) switch ( param ) {
-
-      case macro name( $e{ { expr: EConst( CIdent( name ) | CString( name ) ) } } ): return name;
-
-    case _: }
-
-    return name;
-
-  }
-
-
-  static function getClassTypePath( classType: ClassType ): TypePath {
-
-    return classType.name == classType.module
-
-      ? { pack: classType.pack, name: classType.name }
-
-      : { pack: classType.pack, name: classType.module, sub: classType.name };
-
-  }
-
-  static function isClassGdNative( classType: ClassType ) {
-
-    return classType.meta.has( ':gd.native' );
-
-  }
-
-  static function getClassGdParams( classType: ClassType ) {
-
-    return or( getGdParams( classType.meta.get() ), [] );
-
-  }
-
-  static function getParentGdName( classType: ClassType ) {
-
-    final classParent = classType.superClass.t.get();
-
-    return getGdName( classParent.name, getClassGdParams( classParent ) );
-
-  }
-
-  static function getOwnerGdName( classType: ClassType ) {
-
-    while ( true ) {
-
-      classType = classType.superClass.t.get();
-
-      if ( isClassGdNative( classType ) ) return classType.name;
-
-    }
-
-  }
-
-  static function getClassConstruct( typePath: TypePath ) {
-
-    return macro () -> new $typePath( false );
-
-  }
-
-  static function isClassTool( gdParams: GdParams ) {
-
-    return gdParams.exists( _ -> switch ( _ ) {
-
-      case macro tool: true;
-
-      case _: false;
-
-    } );
-
-  }
-
-  static function registerClass( classInfo: ClassInfo ) {
-
-    final classGdName = classInfo.gdName;
-
-    final parentGdName = getParentGdName( classInfo.classType );
-
-    final construct = getClassConstruct( classInfo.typePath );
-
-    final isTool = isClassTool( classInfo.gdParams );
-
-    final doc = classInfo.classType.doc;
-
-    registerSteps.push( macro gd.hl.Api.registerClass(
-
-      $v{ classGdName },
-
-      $v{ parentGdName },
-
-      $e{ construct },
-
-      $v{ isTool },
-
-      $e{ doc == null ? macro null : macro $v{ doc } }
+      $e{ classData.classType.doc.nullTurn( _ -> macro $v{ _ }, () -> macro null ) }
 
     ) );
 
   }
 
+  static function doFields( classData: CustomClassData, fields: Array< Field > ) {
 
-  static function getFieldRpcMode( gdParams: GdParams ) {
-
-    for ( param in gdParams ) switch ( param ) {
-
-      case macro rpc( $e{ { expr: EConst( CIdent( mode ) | CString( mode ) ) } } ): return mode.toUpperCase();
-
-    case _: }
-
-    return 'DISABLED';
+    for ( field in fields ) FieldBuildTools.build( classData, field );
 
   }
 
-  static function isFieldRegistered( fieldInfo: FieldInfo ) {
+  static function doConstructor( classData: CustomClassData, fields: Array< Field > ) {
 
-    final field = fieldInfo.field;
+    if ( fields.exists( _ -> _.name == 'new' ) ) throw 'Cannot have a constructor in godot class. Use godot hooks.';
 
-    if ( ! field.access.contains( AOverride ) ) return false;
+    final constructor = ( macro class {
 
-    var fieldOwner = fieldInfo.classInfo.classType;
+      public function new( doConstruct: Bool = true ) {
+
+        super( false );
+
+        if ( doConstruct ) gd.hl.Api.constructScript( this, $v{ classData.owner.name }, $v{ classData.name } );
+
+      }
+
+    } ).fields[ 0 ];
+
+    fields.push( constructor );
+
+  }
+
+}
+
+
+class FieldDataTools {
+
+  public static function make( classData: CustomClassData, field: Field, params: Array< Expr > ) {
+
+    return new FieldData().tap( _ -> {
+
+      _.classData = classData;
+
+      _.field = field;
+
+      _.params = params;
+
+      _.name = field.name; // TODO: convert by default?
+
+      _.rpc = 'DISABLED';
+
+
+      for ( param in params ) switch ( param ) {
+
+        case macro name = $i{ value }: _.name = value;
+
+        case macro remote: _.rpc = 'REMOTE';
+
+        case macro remotesync: _.rpc = 'REMOTESYNC';
+
+        case macro master: _.rpc = 'MASTER';
+
+        case macro puppet: _.rpc = 'PUPPET';
+
+        case macro rpc = $i{ value }: _.rpc = value.toUpperCase();
+
+      case _: }
+
+    } );
+
+  }
+
+}
+
+
+class FieldBuildTools {
+
+  public static function build( classData: CustomClassData, field: Field ) {
+
+    final isRegistered = isRegistered( classData, field );
+
+    final meta = field.meta.find( _ -> _.name == ':gd' );
+
+    final params = meta.nullTurn( _ -> _.params.nullOr( () -> [] ), () -> isRegistered ? null : [] );
+
+    if ( params == null ) return;
+
+    if ( isRegistered && params.length > 0 ) throw 'Cannot use godot options for a field during override.';
+
+    if ( isRegistered ) return;
+
+    field.access = field.access.nullOr( () -> [] );
+
+    if ( ! field.access.contains( APublic ) ) field.access.push( APublic );
+
+    final fieldData = FieldDataTools.make( classData, field, params );
+
+    switch ( field.kind ) {
+
+      case FFun( func ):
+
+        MethodBuildTools.build( fieldData, func );
+
+      case FVar( type, expr ):
+
+        PropertyBuildTools.build( fieldData, true, true, type, expr );
+
+      case FProp( get, set, type, expr ):
+
+        PropertyBuildTools.build( fieldData, get != 'null' && get != 'never', set != 'null' && set != 'never', type, expr );
+
+    }
+
+  }
+
+  public static function exprFromVariant( expr: Expr, complexType: ComplexType, fieldData: FieldData ) {
+
+    final topType = Context.resolveType( complexType, fieldData.field.pos );
+
+    if ( Context.unify( Types.Variant, topType ) ) return expr;
+
+    final bottomType = Context.followWithAbstracts( topType );
+
+    if ( Context.unify( bottomType, Types.Object ) ) return macro ( ( $expr.asObject(): Any ): $complexType );
+
+    return null;
+
+  }
+
+
+  static function isRegistered( classData: CustomClassData, field: Field ) {
+
+    if ( ! field.access.nullIsTrue( _ -> _.contains( AOverride ) ) ) return false;
+
+    var fieldOrigin = classData.classType;
 
     while ( true ) {
 
-      fieldOwner = fieldOwner.superClass.t.get();
+      fieldOrigin = fieldOrigin.superClass.t.get();
 
-      final foundField = fieldOwner.fields.get().find( _ -> _.name == field.name );
-
-      if ( foundField == null ) continue;
-
-      final isRegistered = getGdParams( foundField.meta.get() ) != null;
+      final isRegistered = fieldOrigin.fields.get().find( _ -> _.name == field.name ).nullIsTrue( _ -> _.meta.has( ':gd' ) );
 
       if ( isRegistered ) return true;
 
-      final foundOverride = fieldOwner.overrides.find( _ -> _.get().name == field.name );
+      final isOverride = fieldOrigin.overrides.exists( _ -> _.get().name == field.name );
 
-      if ( foundOverride != null ) continue;
+      if ( isOverride ) continue;
 
-      final isNative = isClassGdNative( fieldOwner );
+      final isNative = fieldOrigin.meta.has( ':gd.native' );
 
       return ! isNative;
 
@@ -319,62 +500,34 @@ class Macro {
 
   }
 
-  static function registerField( fieldInfo: FieldInfo ) {
-
-    final field = fieldInfo.field;
-
-    if ( ! field.access.contains( APublic ) ) {
-
-      field.access.push( APublic );
-
-    }
-
-    if ( isFieldRegistered( fieldInfo ) ) {
-
-      if ( fieldInfo.gdParams.length > 0 ) throw "Cannot customisze field registration during override.";
-
-      return;
-
-    }
-
-    switch ( field.kind ) {
-
-      case FFun( func ): registerMethod( fieldInfo, func );
-
-      case FVar( type, expr ): registerProperty( fieldInfo, true, true, type, expr );
-
-      case FProp( get, set, type, expr ): registerProperty( fieldInfo, get != 'null' && get != 'never', set != 'null' && set != 'never', type, expr );
-
-    }
-
-  }
+}
 
 
-  static function registerMethod( fieldInfo: FieldInfo, func: Function ) {
+class MethodBuildTools {
 
-    if ( func.ret == null ) throw "Cannot register a method with an unspecified return type.";
+  public static function build( fieldData: FieldData, func: Function ) {
 
-    if ( func.args.exists( _ -> _.type == null ) ) throw "Cannot register a method with an unspecified argument type.";
-
-    final classGdName = fieldInfo.classInfo.gdName;
-
-    final fieldGdName = fieldInfo.gdName;
+    if ( func.ret == null ) throw 'Cannot register a method with an unspecified return type.';
 
     final method = {
 
-      final arguments = [ for ( index => arg in func.args )
+      final arguments = [ for ( index => arg in func.args ) {
+
+        if ( arg.type == null ) throw 'Cannot register a method with an unspecified argument type.';
+
+        final value = FieldBuildTools.exprFromVariant( macro args[ $v{ index } ], arg.type, fieldData );
 
         arg.opt == true
 
-          ? macro args[ $v{ index } ]
+          ? value
 
-          : macro args.length > $v{ index } ? args[ $v{ index } ] : null
+          : macro args.length > $v{ index } ? $value : null; // TODO: also check value for nil?
 
-      ];
+      } ];
 
-      final classComplexType = fieldInfo.classInfo.complexType;
+      final classComplexType = fieldData.classData.complexType;
 
-      final fieldName = fieldInfo.field.name;
+      final fieldName = fieldData.field.name;
 
       final call = macro ( instance: $classComplexType ).$fieldName( $a{ arguments } );
 
@@ -388,32 +541,109 @@ class Macro {
 
     };
 
-    final rpcMode = getFieldRpcMode( fieldInfo.gdParams );
+    final rpc = fieldData.rpc;
 
-    final doc = fieldInfo.field.doc;
+    Macro.registerSteps.push( macro gd.hl.Api.registerMethod(
 
-    registerSteps.push( macro gd.hl.Api.registerMethod(
+      $v{ fieldData.classData.name },
 
-      $v{ classGdName },
-
-      $v{ fieldGdName },
+      $v{ fieldData.name },
 
       $e{ method },
 
-      gd.MultiplayerAPI_RPCMode.$rpcMode,
+      gd.MultiplayerAPI_RPCMode.$rpc,
 
-      $e{ doc == null ? macro null : macro $v{ doc } }
+      $e{ fieldData.field.doc.nullTurn( _ -> macro $v{ _ }, () -> macro null ) }
+
+    ) );
+
+  }
+
+}
+
+
+class PropertyBuildTools {
+
+  public static function build( fieldData: FieldData, hasGet: Bool, hasSet: Bool, complexType: Null< ComplexType >, expr: Null< Expr > ) {
+
+    if ( complexType == null ) throw 'Cannot register a property with an unspecified type.';
+
+    final type = Context.resolveType( complexType, fieldData.field.pos );
+
+    final variantType = getVariantType( fieldData, type );
+
+    final isObject = variantType == 'OBJECT';
+
+    final classComplexType = fieldData.classData.complexType;
+
+    final fieldName = fieldData.field.name;
+
+
+    var getter = macro null;
+
+    if ( hasGet ) {
+
+      final canCast = Context.unify( type, Types.Variant );
+
+      if ( ! canCast ) throw 'Cannot register a property that cannot be cast to Variant.';
+
+      getter = macro function( instance: Any ): gd.Variant return ( instance: $classComplexType ).$fieldName;
+
+    }
+
+
+    var setter = macro null;
+
+    if ( hasSet ) {
+
+      final value = FieldBuildTools.exprFromVariant( macro value, complexType, fieldData );
+
+      if ( value == null ) throw 'Cannot register a property that cannot be cast from Variant.';
+
+      setter = macro function( instance: Any, value: gd.Variant ): Void ( instance: $classComplexType ).$fieldName = $value;
+
+    }
+
+
+    final defaultValue = expr != null ? macro ( ( $expr: $complexType ): gd.Variant ) : macro null;
+
+    final rpc = fieldData.rpc;
+
+
+    Macro.registerSteps.push( macro gd.hl.Api.registerProperty(
+
+      $v{ fieldData.classData.name },
+
+      $v{ fieldData.name },
+
+      $e{ getter }, // TODO: get() param
+
+      $e{ setter }, // TODO: set() param
+
+      Variant_Type.$variantType,
+
+      $e{ defaultValue },
+
+      PropertyUsageFlags.DEFAULT | PropertyUsageFlags.SCRIPT_VARIABLE, // TODO: usage() param
+
+      PropertyHint.NONE, // TODO: hint() param, add missing property hints to enum
+
+      '',
+
+      gd.MultiplayerAPI_RPCMode.$rpc,
+
+      $e{ fieldData.field.doc.nullTurn( _ -> macro $v{ _ }, () -> macro null ) }
 
     ) );
 
   }
 
 
-  static function getPropertyGdType( fieldInfo: FieldInfo, type: Type ) {
+  static function getVariantType( fieldData: FieldData, type: Type ) {
 
-    for ( param in fieldInfo.gdParams ) switch ( param ) {
+    for ( param in fieldData.params ) switch ( param ) {
 
-      case macro type( $e{ { expr: EConst( CIdent( name ) | CString( name ) ) } } ): switch ( name ) {
+      case macro type = $i{ name }: switch ( name ) {
 
         case 'null': return 'NIL';
 
@@ -425,7 +655,7 @@ class Macro {
 
         case 'String': return 'STRING';
 
-        case _: type = Context.resolveType( TPath( { pack: [ 'gd' ], name: name } ), fieldInfo.field.pos );
+        case _: type = Context.resolveType( TPath( { pack: [ 'gd' ], name: name } ), fieldData.field.pos );
 
       }
 
@@ -453,7 +683,7 @@ class Macro {
 
           case TInst( _.get() => { kind: KExpr( { expr: EConst( CString( name ) ) } ) }, _ ):
 
-            if ( name == 'gh_godot_variant' ) return 'NIL'; // TODO: right?
+            if ( name == 'gh_godot_variant' ) return 'NIL'; // TODO: correct?
 
             if ( pattern.match( name ) ) return pattern.replace( name, '' ).toUpperCase();
 
@@ -461,95 +691,16 @@ class Macro {
 
         case { name: 'String', pack: [] }: return 'STRING';
 
-        case _: if ( Context.unify( type, objectType ) ) return 'OBJECT';
+        case _: if ( Context.unify( type, Types.Object ) ) return 'OBJECT';
 
       }
 
     case _: }
 
-    throw 'Cannot determine variant type for property "${ fieldInfo.field.name }".';
+    throw 'Cannot determine variant type for property "${ fieldData.field.name }".';
 
   }
-
-  static function registerProperty( fieldInfo: FieldInfo, hasGet: Bool, hasSet: Bool, complexType: Null< ComplexType >, expr: Null< Expr > ) {
-
-    if ( complexType == null ) throw "Cannot register a property with an unspecified type.";
-
-    final classGdName = fieldInfo.classInfo.gdName;
-
-    final fieldGdName = fieldInfo.gdName;
-
-
-    final type = Context.resolveType( complexType, fieldInfo.field.pos );
-
-    final gdType = getPropertyGdType( fieldInfo, type );
-
-
-    final isObject = gdType == 'OBJECT';
-
-    final classComplexType = fieldInfo.classInfo.complexType;
-
-    final fieldName = fieldInfo.field.name;
-
-
-    var getter = macro null;
-
-    if ( hasGet ) {
-
-      if ( ! isObject && ! Context.unify( type, variantType ) ) throw "Cannot register a property that cannot be cast tp Variant.";
-
-      getter = macro function( instance: Any ): gd.Variant return ( instance: $classComplexType ).$fieldName;
-
-    }
-
-
-    var setter = macro null;
-
-    if ( hasSet ) {
-
-      if ( ! isObject && ! Context.unify( variantType, type ) ) throw "Cannot register a property that cannot be cast from Variant.";
-
-      final value = isObject ? macro ( ( value.asObject(): Any ): $complexType ) : macro value;
-
-      setter = macro function( instance: Any, value: gd.Variant ): Void ( instance: $classComplexType ).$fieldName = $value;
-
-    }
-
-
-    final defaultValue = expr != null ? macro ( ( $expr: $complexType ): gd.Variant ) : macro null;
-
-    final rpcMode = getFieldRpcMode( fieldInfo.gdParams );
-
-    final doc = fieldInfo.field.doc;
-
-    registerSteps.push( macro gd.hl.Api.registerProperty(
-
-      $v{ classGdName },
-
-      $v{ fieldGdName },
-
-      $e{ getter }, // TODO: get() param
-
-      $e{ setter }, // TODO: set() param
-
-      Variant_Type.$gdType,
-
-      $e{ defaultValue },
-
-      PropertyUsageFlags.DEFAULT | PropertyUsageFlags.SCRIPT_VARIABLE, // TODO: usage() param
-
-      PropertyHint.NONE, // TODO: hint() param, add missing property hints to enum
-
-      "",
-
-      gd.MultiplayerAPI_RPCMode.$rpcMode,
-
-      $e{ doc == null ? macro null : macro $v{ doc } }
-
-    ) );
-
-  }
-
-  #end
 
 }
+
+#end

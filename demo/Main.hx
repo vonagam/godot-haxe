@@ -5,6 +5,8 @@ function main(): Void {
 }
 
 
+@:gd( name = HaxeNode )
+
 class HaxeNode extends gd.Node {
 
   @:gd var prop: Int = 4;
