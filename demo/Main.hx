@@ -5,7 +5,7 @@ function main(): Void {
 }
 
 
-@:gd( name = HaxeNode )
+@:gd( script )
 
 class HaxeNode extends gd.Node {
 

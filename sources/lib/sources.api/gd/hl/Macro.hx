@@ -115,7 +115,7 @@ class Macro {
 
   public static final registerSteps = new Array< Expr >();
 
-  public static final names = new Array< String >();
+  public static final scripts = new Array< String >();
 
 
   #end
@@ -159,7 +159,7 @@ class Macro {
 
       );
 
-      for ( name in names ) {
+      for ( name in scripts ) {
 
         final path = 'gh/${ name }.gdns';
 
@@ -272,7 +272,7 @@ class ClassDataTools {
       _.complexType = TPath( _.typePath );
 
 
-      var isNamed = false;
+      var isScript = false;
 
       final params = classType.meta.extract( ':gd' )[ 0 ].nullMap( _ -> _.params );
 
@@ -282,18 +282,20 @@ class ClassDataTools {
 
         case macro tool = false: _.tool = false;
 
-        case macro name = $e{ expr }:
+        case macro script, macro script = true: isScript = true;
 
-          _.name = expr.toString();
+        case macro script = false: isScript = false;
 
-          isNamed = true;
+        case macro script = $e{ expr }: isScript = true; _.name = expr.toString();
+
+        case macro name = $e{ expr }: _.name = expr.toString();
 
         case _: throw 'Cannot understand godot class param "${ param.toString() }".';
 
       }
 
 
-      if ( isNamed ) Macro.names.push( _.name );
+      if ( isScript ) Macro.scripts.push( _.name );
 
     } );
 
