@@ -104,17 +104,83 @@ function fixHaxe( coreType: CoreTypeData, definition: ToTypeDefinition ) {
 
   switch ( coreType.name.hx ) {
 
-    case 'Dictionary':
+    case 'Dictionary' | 'Array' | 'PoolByteArray' | 'PoolColorArray' | 'PoolIntArray' | 'PoolRealArray' | 'PoolStringArray' | 'PoolVector2Array' | 'PoolVector3Array':
+
+      final getIndex = definition.fields.iter().find( _ -> _.name == 'getIndex' )!;
+
+      if ( getIndex != null ) definition.fields.remove( getIndex );
+
+
+      definition.fields.iter().find( _ -> _.name == 'get' )!.meta!.push( geMeta( macro @:op( [] ) _ ) );
 
       definition.fields.iter().find( _ -> _.name == 'set' )!.meta!.push( geMeta( macro @:op( [] ) _ ) );
 
-    case 'GdArray':
 
-      definition.fields.iter().find( _ -> _.name == 'set' )!.meta!.push( geMeta( macro @:op( [] ) _ ) );
+      if ( coreType.name.hx == 'Dictionary' ) {
 
-    case 'PoolByteArray' | 'PoolColorArray' | 'PoolIntArray' | 'PoolRealArray' | 'PoolStringArray' | 'PoolVector2Array' | 'PoolVector3Array':
+        final iterators = gdFields( macro class {
 
-      definition.fields.iter().find( _ -> _.name == 'get' || _.name == 'set' )!.meta!.push( geMeta( macro @:op( [] ) _ ) );
+          public function iterator() {
+
+            return values().iterator();
+
+          }
+
+          public function keyValueIterator() {
+
+            final keys = keys();
+
+            final size = keys.size();
+
+            var index = 0;
+
+            return { hasNext: () -> index < size, next: () -> {
+
+              final key = keys.get( index++ );
+
+              return { key: key, value: get( key ) };
+
+            } };
+
+          }
+
+        } );
+
+        definition.fields.push( iterators[ 0 ] );
+
+        definition.fields.push( iterators[ 1 ] );
+
+      } else {
+
+        final iterators = gdFields( macro class {
+
+          public function iterator() {
+
+            final size = size();
+
+            var index = 0;
+
+            return { hasNext: () -> index < size, next: () -> get( index++ ) };
+
+          }
+
+          public function keyValueIterator() {
+
+            final size = size();
+
+            var index = 0;
+
+            return { hasNext: () -> index < size, next: () -> { key: index, value: get( index++ ) } };
+
+          }
+
+        } );
+
+        definition.fields.push( iterators[ 0 ] );
+
+        definition.fields.push( iterators[ 1 ] );
+
+      }
 
     case 'Variant':
 
