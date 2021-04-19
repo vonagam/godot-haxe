@@ -1,5 +1,7 @@
 package core;
 
+using vhx.ds.ArrayTools;
+
 using vhx.str.StringTools;
 
 import vhx.macro.ExprTools;
@@ -111,22 +113,26 @@ function fixHaxe( coreType: CoreTypeData, definition: ToTypeDefinition ) {
       if ( getIndex != null ) definition.fields.remove( getIndex );
 
 
-      definition.fields.iter().find( _ -> _.name == 'get' )!.meta!.push( geMeta( macro @:op( [] ) _ ) );
+      final get = definition.fields.iter().find( _ -> _.name == 'get' )!;
 
-      definition.fields.iter().find( _ -> _.name == 'set' )!.meta!.push( geMeta( macro @:op( [] ) _ ) );
+      final set = definition.fields.iter().find( _ -> _.name == 'set' )!;
+
+      get.meta!.push( geMeta( macro @:op( [] ) _ ) );
+
+      set.meta!.push( geMeta( macro @:op( [] ) _ ) );
 
 
       if ( coreType.name.hx == 'Dictionary' ) {
 
-        final iterators = gdFields( macro class {
+        definition.fields.append( gdFields( macro class {
 
-          public function iterator() {
+          public function iterator(): Iterator< Variant > {
 
             return values().iterator();
 
           }
 
-          public function keyValueIterator() {
+          public function keyValueIterator(): KeyValueIterator< Variant, Variant > {
 
             final keys = keys();
 
@@ -144,17 +150,15 @@ function fixHaxe( coreType: CoreTypeData, definition: ToTypeDefinition ) {
 
           }
 
-        } );
-
-        definition.fields.push( iterators[ 0 ] );
-
-        definition.fields.push( iterators[ 1 ] );
+        } ) );
 
       } else {
 
-        final iterators = gdFields( macro class {
+        final type = switch ( get.kind ) { case FFun( func ): func.ret; case _: throw false; };
 
-          public function iterator() {
+        definition.fields.append( gdFields( macro class {
+
+          public function iterator(): Iterator< $type > {
 
             final size = size();
 
@@ -164,7 +168,7 @@ function fixHaxe( coreType: CoreTypeData, definition: ToTypeDefinition ) {
 
           }
 
-          public function keyValueIterator() {
+          public function keyValueIterator(): KeyValueIterator< Int, $type > {
 
             final size = size();
 
@@ -174,11 +178,7 @@ function fixHaxe( coreType: CoreTypeData, definition: ToTypeDefinition ) {
 
           }
 
-        } );
-
-        definition.fields.push( iterators[ 0 ] );
-
-        definition.fields.push( iterators[ 1 ] );
+        } ) );
 
       }
 
