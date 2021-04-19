@@ -30,7 +30,7 @@ class HaxeNode extends gd.Node {
 
     trace( prop );
 
-    return this.getClass();
+    return 'hello, ${ this.getClass() }';
 
   }
 

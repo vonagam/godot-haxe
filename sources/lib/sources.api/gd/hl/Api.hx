@@ -101,7 +101,14 @@ class Api {
   public static function bindConstructors( constructors: hl.NativeArray< ConstructorBind > ): Void throw 8;
 
 
+  @:hlNative( 'gh', 'extra_set_string_type' )
+
+  public static function setStringType( type: hl.Type ): Void throw 8;
+
+
   public static function init() {
+
+    setStringType( hl.Type.get( ( null: String ) ) );
 
     gd.hl.Objects.init();
 

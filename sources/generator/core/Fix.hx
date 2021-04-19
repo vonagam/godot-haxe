@@ -200,6 +200,7 @@ function fixHaxe( coreType: CoreTypeData, definition: ToTypeDefinition ) {
 
       }
 
+
       final types = [
 
         'NIL' => 'Nil',
@@ -243,6 +244,30 @@ function fixHaxe( coreType: CoreTypeData, definition: ToTypeDefinition ) {
         } ) );
 
       }
+
+
+      definition.fields.append( gdFields( macro class {
+
+        @:from public static inline function fromHaxeString( string: std.String ): Variant return newString( string );
+
+        @:to public inline function toHaxeString(): std.String return asString();
+
+      } ) );
+
+    case 'String':
+
+      definition.fields.append( gdFields( macro class {
+
+        @:hlNative( "gh", "String_fromHaxeString" ) @:from
+
+        public static function fromHaxeString( string: std.String ): gd.String throw 8;
+
+
+        @:hlNative( "gh", "String_toHaxeString" ) @:to
+
+        public function toHaxeString(): std.String throw 8;
+
+      } ) );
 
     case _:
 
