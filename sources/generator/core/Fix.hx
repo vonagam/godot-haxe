@@ -104,9 +104,26 @@ function fixType( type: CoreTypeData ) {
 
 function fixHaxe( coreType: CoreTypeData, definition: ToTypeDefinition ) {
 
-  switch ( coreType.name.hx ) {
+  final haxeName = coreType.name.hx;
+
+  final markNewFroms = () -> {
+
+    for ( field in definition.fields ) if ( field.name.hasPrefix( 'new' ) ) switch ( field.kind ) {
+
+      case FFun( { args: [ { type: TPath( { name: name } ) } ] } ) if ( name != haxeName ):
+
+        field.meta!.push( meta( ':from' ) );
+
+    case _: }
+
+  };
+
+  switch ( haxeName ) {
 
     case 'Dictionary' | 'Array' | 'PoolByteArray' | 'PoolColorArray' | 'PoolIntArray' | 'PoolRealArray' | 'PoolStringArray' | 'PoolVector2Array' | 'PoolVector3Array':
+
+      markNewFroms();
+
 
       final getIndex = definition.fields.iter().find( _ -> _.name == 'getIndex' )!;
 
@@ -122,7 +139,7 @@ function fixHaxe( coreType: CoreTypeData, definition: ToTypeDefinition ) {
       set.meta!.push( geMeta( macro @:op( [] ) _ ) );
 
 
-      if ( coreType.name.hx == 'Dictionary' ) {
+      if ( haxeName == 'Dictionary' ) {
 
         definition.fields.append( gdFields( macro class {
 
@@ -150,15 +167,39 @@ function fixHaxe( coreType: CoreTypeData, definition: ToTypeDefinition ) {
 
           }
 
+          @:from public static function fromHaxeMap( map: Map< Variant, Variant > ): Dictionary {
+
+            final dictionary = new Dictionary();
+
+            for ( key => value in map ) dictionary.set( key, value );
+
+            return dictionary;
+
+          }
+
+          // @:to public function toHaxeMap(): Map< Variant, Variant > { // TODO: haxe#10221
+
+          //   final map = new Map< Variant, Variant >();
+
+          //   for ( key => value in keyValueIterator() ) map.set( key, value );
+
+          //   return map;
+
+          // }
+
         } ) );
 
       } else {
 
-        final type = switch ( get.kind ) { case FFun( func ): func.ret; case _: throw false; };
+        final typePath = tyPath( haxeName );
+
+        final complexType = tPath( haxeName );
+
+        final elementType = switch ( get.kind ) { case FFun( func ): func.ret; case _: throw false; };
 
         definition.fields.append( gdFields( macro class {
 
-          public function iterator(): Iterator< $type > {
+          public function iterator(): Iterator< $elementType > {
 
             final size = size();
 
@@ -168,7 +209,7 @@ function fixHaxe( coreType: CoreTypeData, definition: ToTypeDefinition ) {
 
           }
 
-          public function keyValueIterator(): KeyValueIterator< Int, $type > {
+          public function keyValueIterator(): KeyValueIterator< Int, $elementType > {
 
             final size = size();
 
@@ -178,27 +219,35 @@ function fixHaxe( coreType: CoreTypeData, definition: ToTypeDefinition ) {
 
           }
 
+          @:from public static function fromHaxeArray( array: std.Array< $elementType > ): $complexType {
+
+            final result = new $typePath();
+
+            for ( value in array ) result.pushBack( value );
+
+            return result;
+
+          }
+
+          @:to public function toHaxeArray(): std.Array< $elementType > {
+
+            final array = new std.Array< $elementType >();
+
+            for ( value in iterator() ) array.push( value );
+
+            return array;
+
+          }
+
         } ) );
 
       }
 
     case 'Variant':
 
-      for ( field in definition.fields ) {
+      markNewFroms();
 
-        if ( field.name.hasPrefix( 'as' ) ) field.meta!.push( meta( ':to' ) );
-
-        if ( field.name.hasPrefix( 'new' ) ) switch ( field.kind ) {
-
-          case FFun( { args: [ { type: TPath( { name: _ == 'Variant' => false } ) } ] } ):
-
-            field.meta!.push( meta( ':from' ) );
-
-          case _:
-
-        }
-
-      }
+      for ( field in definition.fields ) if ( field.name.hasPrefix( 'as' ) ) field.meta!.push( meta( ':to' ) );
 
 
       final types = [
@@ -246,7 +295,47 @@ function fixHaxe( coreType: CoreTypeData, definition: ToTypeDefinition ) {
       }
 
 
+      final arrays = [
+
+        { godot: 'Array', haxe: 'HaxeArray', type: macro : std.Array< Variant > },
+        { godot: 'PoolByteArray', haxe: 'HaxeByteArray', type: macro : std.Array< hl.UI8 > },
+        { godot: 'PoolIntArray', haxe: 'HaxeIntArray', type: macro : std.Array< Int > },
+        { godot: 'PoolRealArray', haxe: 'HaxeRealArray', type: macro : std.Array< hl.F32 > },
+        { godot: 'PoolStringArray', haxe: 'HaxeStringArray', type: macro : std.Array< String > },
+        { godot: 'PoolVector2Array', haxe: 'HaxeVector2Array', type: macro : std.Array< Vector2 > },
+        { godot: 'PoolVector3Array', haxe: 'HaxeVector3Array', type: macro : std.Array< Vector3 > },
+        { godot: 'PoolColorArray', haxe: 'HaxeColorArray', type: macro : std.Array< Color > }
+
+      ];
+
+      for ( array in arrays ) {
+
+        final newGdArray = 'new${ array.godot }';
+
+        final asGdArray = 'as${ array.godot }';
+
+        final fromHxArray = 'from${ array.haxe }';
+
+        final toHxArray = 'to${ array.haxe }';
+
+        final hxType = array.type;
+
+        definition.fields.append( gdFields( macro class {
+
+          @:from public static inline function $fromHxArray( array: $hxType ): Variant return $i{ newGdArray }( array );
+
+          @:to public inline function $toHxArray(): $hxType return $i{ asGdArray }();
+
+        } ) );
+
+      }
+
+
       definition.fields.append( gdFields( macro class {
+
+        @:from public static inline function fromHaxeMap( map: Map< Variant, Variant > ): Variant return newDictionary( map );
+
+        // @:to public inline function toHaxeMap(): Map< Variant, Variant > return asDictionary();
 
         @:from public static inline function fromHaxeString( string: std.String ): Variant return newString( string );
 
