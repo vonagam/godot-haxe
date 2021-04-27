@@ -120,7 +120,7 @@ function writeObjectHaxe( objectTypes: Array< ObjectTypeData > ) {
 
         final apiArgs = [ arg( 'that', tPath( objectType.name.hx ) ) ].concat( args );
 
-        if ( method.hasVarArg ) apiArgs.push( arg( 'pArgs', tPath( 'hl.NativeArray', [ tParam( 'gd.Variant' ) ] ) ) );
+        if ( method.hasVarArg ) apiArgs.push( arg( 'pArgs', tPath( 'gd.hl.NativeArray', [ tPath( 'Variant' ) ] ) ) );
 
         final body = eThrow( 8 );
 
@@ -150,27 +150,13 @@ function writeObjectHaxe( objectTypes: Array< ObjectTypeData > ) {
 
           args.push( arg( '...pArgs', tPath( 'Variant' ) ) );
 
-          callArgs.push( eIdent( 'args' ) );
+          callArgs.push( eIdent( 'pArgs' ) );
 
         }
 
         final call = eCall( eField( eApi, apiName ), callArgs );
 
-        var body = returns == 'Void' ? call : eReturn( call );
-
-        if ( method.hasVarArg ) {
-
-          body = macro {
-
-            final args = new hl.NativeArray< Variant >( pArgs.length );
-
-            for ( index => arg in pArgs ) args[ index ] = arg;
-
-            $e{ body }
-
-          };
-
-        }
+        final body = returns == 'Void' ? call : eReturn( call );
 
         final field = fFun( name, args, type, { doc: doc, access: access, body: body } );
 
