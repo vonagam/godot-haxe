@@ -519,11 +519,11 @@ class MethodBuildTools {
 
         final value = FieldBuildTools.exprFromVariant( macro args[ $v{ index } ], arg.type, fieldData );
 
-        arg.opt == true
+        arg.opt != true
 
           ? value
 
-          : macro args.length > $v{ index } ? $value : null; // TODO: also check value for nil?
+          : macro args.length > $v{ index } && ! args[ $v{ index } ].isNil() ? $value : null;
 
       } ];
 
