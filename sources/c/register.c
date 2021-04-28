@@ -13,6 +13,18 @@
 
 // Common
 
+// method/signal argument data
+
+typedef struct gh_register_argument_data {
+
+  hl_type *t;
+
+  vstring *name;
+
+  int type;
+
+} gh_register_argument_data;
+
 // just an adapter to match godot signature (void * vs void **)
 
 static void gh_register_gc_root_free( void *root ) {
@@ -29,7 +41,11 @@ static godot_string gh_register_make_godot_string( vstring *value ) {
 
   gdnative_core->godot_string_new( &result );
 
-  gdnative_core->godot_string_parse_utf8( &result, hl_chars( value ) );
+  if ( value != NULL ) {
+
+    gdnative_core->godot_string_parse_utf8( &result, hl_chars( value ) );
+
+  }
 
   return result;
 
@@ -362,3 +378,69 @@ HL_PRIM void HL_NAME( register_property )(
 
 DEFINE_PRIM( _VOID, register_property, _STRING _STRING _FUN( _GH_VARIANT, _DYN ) _FUN( _VOID, _DYN _GH_VARIANT ) _I32 _GH_VARIANT _I32 _I32 _STRING _I32 _STRING );
 
+
+// Signal
+
+// register a signal
+
+HL_PRIM void HL_NAME( register_signal )(
+
+  vstring *class_name,
+
+  vstring *signal_name,
+
+  varray *arguments,
+
+  vstring *documentation
+
+) {
+
+  godot_signal_argument *args = gdnative_core->godot_alloc( sizeof( godot_signal_argument ) * arguments->size );
+
+  for ( int i = 0; i < arguments->size; i++ ) {
+
+    gh_register_argument_data *argument = hl_aptr( arguments, gh_register_argument_data * )[ i ];
+
+    args[ i ] = ( godot_signal_argument ) {
+
+      gh_register_make_godot_string( argument->name ),
+
+      argument->type,
+
+      GODOT_PROPERTY_HINT_NONE,
+
+      gh_register_make_godot_string( NULL ),
+
+      GODOT_PROPERTY_USAGE_DEFAULT, // TODO: meaningless param?
+
+      gh_register_make_godot_variant( NULL )
+
+    };
+
+  }
+
+  godot_signal signal = { gh_register_make_godot_string( signal_name ), arguments->size, args, 0, NULL };
+
+  gdnative_nativescript->godot_nativescript_register_signal( gdnative_handle, hl_chars( class_name ), &signal );
+
+  gdnative_core->godot_free( args );
+
+  if ( documentation != NULL ) {
+
+    gdnative_nativescript_1_1->godot_nativescript_set_signal_documentation(
+
+      gdnative_handle,
+
+      hl_chars( class_name ),
+
+      hl_chars( signal_name ),
+
+      gh_register_make_godot_string( documentation )
+
+    );
+
+  }
+
+}
+
+DEFINE_PRIM( _VOID, register_signal, _STRING _STRING _ARR _STRING );

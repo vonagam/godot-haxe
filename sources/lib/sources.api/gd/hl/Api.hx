@@ -20,6 +20,23 @@ class ConstructorBind {
 
 }
 
+class ArgumentData {
+
+  final name: String;
+
+  final type: gd.Variant_Type;
+
+
+  public function new( name: String, type: gd.Variant_Type ) {
+
+    this.name = name;
+
+    this.type = type;
+
+  }
+
+}
+
 
 class Api {
 
@@ -80,6 +97,21 @@ class Api {
     hintString: String,
 
     rpcMode: gd.MultiplayerAPI_RPCMode,
+
+    ?documentation: String
+
+  ): Void throw 8;
+
+
+  @:hlNative( 'gh', 'register_signal' )
+
+  public static function registerSignal(
+
+    className: String,
+
+    signalName: String,
+
+    arguments: gd.hl.NativeArray< ArgumentData >,
 
     ?documentation: String
 

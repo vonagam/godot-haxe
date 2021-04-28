@@ -20,6 +20,8 @@ using haxe.macro.Tools;
 
 using gd.hl.Macro.Tools;
 
+using gd.hl.Macro.MetadataTools;
+
 
 class Tools {
 
@@ -84,6 +86,8 @@ class CustomClassData extends ClassData {
 
   public var complexType: ComplexType;
 
+  public var additions: Array< Field >;
+
 
   public function new() super();
 
@@ -133,7 +137,15 @@ class Macro {
 
     Types.init( Context.currentPos() );
 
-    return ClassBuildTools.build();
+    return ClassMacro.build();
+
+  }
+
+  public static function signal() {
+
+    Types.init( Context.currentPos() );
+
+    return SignalMacro.build();
 
   }
 
@@ -194,6 +206,39 @@ class Types {
     Variant = Context.resolveType( TPath( { pack: [ 'gd' ], name: 'Variant' } ), position );
 
     Object = Context.resolveType( TPath( { pack: [ 'gd' ], name: 'Object' } ), position );
+
+  }
+
+}
+
+
+class MetadataTools {
+
+  public static function getParams( metadata: Null< Metadata > ) {
+
+    var params: Null< Array< Expr > > = null;
+
+    if ( metadata != null ) for ( meta in metadata ) {
+
+      if ( meta.name == ':gd' ) {
+
+        if ( params == null ) params = [];
+
+        if ( meta.params != null ) for ( param in meta.params ) params.push( param );
+
+      } else if ( meta.name.startsWith( ':gd.' ) ) {
+
+        if ( params == null ) params = [];
+
+        final key = macro $i{ meta.name.substring( 4 ) };
+
+        params.push( meta.params == null || meta.params.length == 0 ? key : macro $key = ${ meta.params[ 0 ] } );
+
+      }
+
+    }
+
+    return params;
 
   }
 
@@ -271,10 +316,12 @@ class ClassDataTools {
 
       _.complexType = TPath( _.typePath );
 
+      _.additions = [];
+
 
       var isScript = false;
 
-      final params = classType.meta.extract( ':gd' )[ 0 ].nullMap( _ -> _.params );
+      final params = classType.meta.get().getParams();
 
       if ( params != null ) for ( param in params ) switch ( param ) {
 
@@ -304,7 +351,7 @@ class ClassDataTools {
 }
 
 
-class ClassBuildTools {
+class ClassMacro {
 
   public static function build() {
 
@@ -326,8 +373,10 @@ class ClassBuildTools {
 
     doConstructor( classData, fields );
 
+    // TODO: move assigning default values to _init?
 
-    return fields;
+
+    return fields.concat( classData.additions );
 
   }
 
@@ -354,7 +403,7 @@ class ClassBuildTools {
 
   static function doFields( classData: CustomClassData, fields: Array< Field > ) {
 
-    for ( field in fields ) FieldBuildTools.build( classData, field );
+    for ( field in fields ) FieldMacro.build( classData, field );
 
   }
 
@@ -374,7 +423,7 @@ class ClassBuildTools {
 
     } ).fields[ 0 ];
 
-    fields.push( constructor );
+    classData.additions.push( constructor );
 
   }
 
@@ -421,41 +470,44 @@ class FieldDataTools {
 }
 
 
-class FieldBuildTools {
+class FieldMacro {
 
   public static function build( classData: CustomClassData, field: Field ) {
 
     final isRegistered = isRegistered( classData, field );
 
-    final meta = field.meta.find( _ -> _.name == ':gd' );
-
-    final params = meta.nullTurn( _ -> _.params.nullOr( () -> [] ), () -> isRegistered ? null : [] );
+    final params = field.meta.getParams().nullOr( () -> isRegistered ? [] : null );
 
     if ( params == null ) return;
 
-    if ( isRegistered && params.length > 0 ) throw 'Cannot use godot options for a field during override.';
-
-    if ( isRegistered ) return;
 
     field.access = field.access.nullOr( () -> [] );
 
     if ( ! field.access.contains( APublic ) ) field.access.push( APublic );
 
+
+    if ( isRegistered ) params.length > 0 ? throw 'Cannot use godot options for a field during override.' : return;
+
+
     final fieldData = FieldDataTools.make( classData, field, params );
 
     switch ( field.kind ) {
 
+      case FFun( func ) if ( params.exists( _ -> switch ( _ ) { case macro signal: true; case _: false; } ) ):
+
+        SignalFieldMacro.build( fieldData, func );
+
       case FFun( func ):
 
-        MethodBuildTools.build( fieldData, func );
+        MethodFieldMacro.build( fieldData, func );
 
       case FVar( type, expr ):
 
-        PropertyBuildTools.build( fieldData, true, true, type, expr );
+        PropertyFieldMacro.build( fieldData, true, true, type, expr );
 
       case FProp( get, set, type, expr ):
 
-        PropertyBuildTools.build( fieldData, get != 'null' && get != 'never', set != 'null' && set != 'never', type, expr );
+        PropertyFieldMacro.build( fieldData, get != 'null' && get != 'never', set != 'null' && set != 'never', type, expr );
 
     }
 
@@ -475,6 +527,70 @@ class FieldBuildTools {
 
   }
 
+  public static function getVariantType( fieldData: FieldData, ?type: Type, ?params: Array< Expr > ) {
+
+    if ( params != null ) for ( param in params ) switch ( param ) {
+
+      case macro type = $i{ name }: switch ( name ) {
+
+        case 'null': return 'NIL';
+
+        case 'Bool': return 'BOOL';
+
+        case 'UInt' | 'Int': return 'INT';
+
+        case 'Float' | 'Single': return 'REAL';
+
+        case 'String': return 'STRING';
+
+        case _: type = Context.resolveType( TPath( { pack: [ 'gd' ], name: name } ), fieldData.field.pos );
+
+      }
+
+    case _: }
+
+    if ( type == null ) return 'NIL';
+
+    final type = Context.followWithAbstracts( type );
+
+    final pattern = ~/^gh_godot_(pool_)?/;
+
+    switch ( type ) {
+
+      case TAbstract( _.get() => abstractType, _ ): switch ( abstractType ) {
+
+        case { name: 'Bool', pack: [] }: return 'BOOL';
+
+        case { name: 'Int' | 'UInt', pack: [] }: return 'INT';
+
+        case { name: 'Float' | 'Single', pack: [] }: return 'REAL';
+
+      case _: }
+
+      case TInst( _.get() => classType, params ): switch ( classType ) {
+
+        case { name: 'Abstract', pack: [ 'hl' ] }: switch ( params[ 0 ] ) {
+
+          case TInst( _.get() => { kind: KExpr( macro $v{ ( name: String ) } ) }, _ ):
+
+            if ( name == 'gh_godot_variant' ) return 'NIL'; // TODO: correct?
+
+            if ( pattern.match( name ) ) return pattern.replace( name, '' ).toUpperCase();
+
+        case _: }
+
+        case { name: 'String', pack: [] }: return 'STRING';
+
+        case _: if ( Context.unify( type, Types.Object ) ) return 'OBJECT';
+
+      }
+
+    case _: }
+
+    throw 'Cannot determine variant type in "${ fieldData.field.name }".';
+
+  }
+
 
   static function isRegistered( classData: CustomClassData, field: Field ) {
 
@@ -486,7 +602,7 @@ class FieldBuildTools {
 
       fieldOrigin = fieldOrigin.superClass.t.get();
 
-      final isRegistered = fieldOrigin.fields.get().find( _ -> _.name == field.name ).nullIsTrue( _ -> _.meta.has( ':gd' ) );
+      final isRegistered = fieldOrigin.fields.get().find( _ -> _.name == field.name ).nullIsTrue( _ -> _.meta.get().getParams() != null );
 
       if ( isRegistered ) return true;
 
@@ -505,7 +621,7 @@ class FieldBuildTools {
 }
 
 
-class MethodBuildTools {
+class MethodFieldMacro {
 
   public static function build( fieldData: FieldData, func: Function ) {
 
@@ -517,7 +633,7 @@ class MethodBuildTools {
 
         if ( arg.type == null ) throw 'Cannot register a method with an unspecified argument type.';
 
-        final value = FieldBuildTools.exprFromVariant( macro args[ $v{ index } ], arg.type, fieldData );
+        final value = FieldMacro.exprFromVariant( macro args[ $v{ index } ], arg.type, fieldData );
 
         arg.opt != true
 
@@ -564,7 +680,7 @@ class MethodBuildTools {
 }
 
 
-class PropertyBuildTools {
+class PropertyFieldMacro {
 
   public static function build( fieldData: FieldData, hasGet: Bool, hasSet: Bool, complexType: Null< ComplexType >, expr: Null< Expr > ) {
 
@@ -572,7 +688,7 @@ class PropertyBuildTools {
 
     final type = Context.resolveType( complexType, fieldData.field.pos );
 
-    final variantType = getVariantType( fieldData, type );
+    final variantType = FieldMacro.getVariantType( fieldData, type, fieldData.params );
 
     final isObject = variantType == 'OBJECT';
 
@@ -598,7 +714,7 @@ class PropertyBuildTools {
 
     if ( hasSet ) {
 
-      final value = FieldBuildTools.exprFromVariant( macro value, complexType, fieldData );
+      final value = FieldMacro.exprFromVariant( macro value, complexType, fieldData );
 
       if ( value == null ) throw 'Cannot register a property that cannot be cast from Variant.';
 
@@ -640,66 +756,155 @@ class PropertyBuildTools {
 
   }
 
+}
 
-  static function getVariantType( fieldData: FieldData, type: Type ) {
 
-    for ( param in fieldData.params ) switch ( param ) {
+class SignalFieldMacro {
 
-      case macro type = $i{ name }: switch ( name ) {
+  public static function build( fieldData: FieldData, func: Function ) {
 
-        case 'null': return 'NIL';
+    final complexType = TPath( { pack: [ 'gd', 'hl' ], name: 'Signal', params: [
 
-        case 'Bool': return 'BOOL';
+      TPExpr( macro $v{ fieldData.name } ),
 
-        case 'UInt' | 'Int': return 'INT';
+      TPType( TFunction( func.args.map( _ -> TNamed( _.name, _.type ) ), macro : Void ) )
 
-        case 'Float' | 'Single': return 'REAL';
+    ] } );
 
-        case 'String': return 'STRING';
 
-        case _: type = Context.resolveType( TPath( { pack: [ 'gd' ], name: name } ), fieldData.field.pos );
+    fieldData.field.kind = ( macro class {
 
-      }
+      var _( get, null ): $complexType;
 
-    case _: }
+    } ).fields[ 0 ].kind;
 
-    final type = Context.followWithAbstracts( type );
 
-    final pattern = ~/^gh_godot_(pool_)?/;
+    final getterName = 'get_${ fieldData.field.name }';
 
-    switch ( type ) {
+    fieldData.classData.additions.push( ( macro class {
 
-      case TAbstract( _.get() => abstractType, _ ): switch ( abstractType ) {
+      private extern inline function $getterName() return this;
 
-        case { name: 'Bool', pack: [] }: return 'BOOL';
+    } ).fields[ 0 ] );
 
-        case { name: 'Int' | 'UInt', pack: [] }: return 'INT';
 
-        case { name: 'Float' | 'Single', pack: [] }: return 'REAL';
+    final arguments = [ for ( arg in func.args ) {
 
-      case _: }
+      if ( arg.type == null ) throw 'Cannot register a method with an unspecified argument type.';
 
-      case TInst( _.get() => classType, params ): switch ( classType ) {
+      final name = arg.name;
 
-        case { name: 'Abstract', pack: [ 'hl' ] }: switch ( params[ 0 ] ) {
+      final type = Context.resolveType( arg.type, fieldData.field.pos );
 
-          case TInst( _.get() => { kind: KExpr( { expr: EConst( CString( name ) ) } ) }, _ ):
+      final params = arg.meta.getParams();
 
-            if ( name == 'gh_godot_variant' ) return 'NIL'; // TODO: correct?
+      final variantType = FieldMacro.getVariantType( fieldData, type, params );
 
-            if ( pattern.match( name ) ) return pattern.replace( name, '' ).toUpperCase();
+      macro new gd.hl.Api.ArgumentData( $v{ name }, Variant_Type.$variantType );
 
-        case _: }
+    } ];
 
-        case { name: 'String', pack: [] }: return 'STRING';
 
-        case _: if ( Context.unify( type, Types.Object ) ) return 'OBJECT';
+    Macro.registerSteps.push( macro gd.hl.Api.registerSignal(
 
-      }
+      $v{ fieldData.classData.name },
 
-    case _: }
+      $v{ fieldData.name }, // TODO: should remove on_ prefix by default?
 
-    throw 'Cannot determine variant type for property "${ fieldData.field.name }".';
+      $a{ arguments },
+
+      $e{ fieldData.field.doc.nullTurn( _ -> macro $v{ _ }, () -> macro null ) }
+
+    ) );
+
+  }
+
+}
+
+
+class SignalMacro {
+
+  static var counter = 0;
+
+  static var kind = TDAbstract( macro : gd.Object, [ macro : gd.Object ], [ macro : gd.Object ] );
+
+
+  public static function build() {
+
+    final pos = Context.currentPos();
+
+
+    var signal: String;
+
+    var args: Array< { t: Type, opt: Bool, name: String } >;
+
+    switch ( Context.getLocalType() ) {
+
+      case TInst( _, [
+
+        TInst( _.get() => { kind: KExpr( macro $v{ ( signalValue: String ) } ) }, _ ),
+
+        TFun( argsValue, _ )
+
+      ] ):
+
+        signal = signalValue;
+
+        args = argsValue;
+
+    case _: throw false; };
+
+
+    final emitFuncArgs = args.map( _ -> ( { name: _.name, type: _.t.toComplexType() }: FunctionArg ) );
+
+    final emitCallArgs = [ macro $v{ signal } ].concat( args.map( _ -> macro $i{ _.name } ) );
+
+
+    final fields = ( macro class {
+
+      public extern inline function connect( target: gd.Object, method: gd.String, ?binds: gd.Array, ?flags: Int ): gd.Error
+
+        return this.connect( $v{ signal }, target, method, binds, flags );
+
+      public extern inline function disconnect( target: gd.Object, method: gd.String ): Void
+
+        this.disconnect( $v{ signal }, target, method );
+
+      @:op( _() ) public extern inline function emit(): Void
+
+        this.emitSignal( $a{ emitCallArgs } );
+
+    } ).fields;
+
+    fields[ 2 ].kind = switch ( fields[ 2 ].kind ) {
+
+      case FFun( func ): FFun( { args: emitFuncArgs, ret: func.ret, expr: func.expr } );
+
+    case _: throw false; };
+
+
+    final name = 'Signal${ counter++ }';
+
+    final definition: TypeDefinition = {
+
+      pos: pos,
+
+      pack: [ 'gd', 'hl', 'Signal' ],
+
+      isExtern: true,
+
+      name: name,
+
+      kind: kind,
+
+      fields: fields,
+
+    };
+
+    Context.defineType( definition );
+
+
+    return TPath( { pack: [ 'gd', 'hl' ], name: 'Signal', sub: name } );
 
   }
 

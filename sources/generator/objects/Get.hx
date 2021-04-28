@@ -313,6 +313,36 @@ function getObjectTypes( primitiveTypes: Array< PrimitiveTypeData >, objectType:
 
     }
 
+    for ( signalJson in objectJson.signals ) {
+
+      final arguments = [ for ( argJson in signalJson.arguments ) new ValueData().tap( ( value ) -> {
+
+        value.name.hx = ( 'p_' + argJson.name ).toCamelCase();
+
+        value.type = gdsTypes[ argJson.type ];
+
+        value.isPointer = type.isPointer;
+
+      } ) ];
+
+      final docs = docs.signals().iter().find( _ -> _.name() == signalJson.name );
+
+      final signal = new SignalData();
+
+      signal.name.gds = signalJson.name;
+
+      signal.name.hx = ( 'on_' + signal.name.gds ).toCamelCase();
+
+      if ( signal.name.gds == 'global_menu_action' && type.name.hx == 'SceneTree' ) continue; // TODO: godot-headers/issues/89
+
+      signal.arguments = arguments;
+
+      signal.doc = docs.map( _ -> _.description() );
+
+      type.signals.push( signal );
+
+    }
+
     for ( data in type.enums ) {
 
       for ( value in data.values ) {
@@ -326,8 +356,6 @@ function getObjectTypes( primitiveTypes: Array< PrimitiveTypeData >, objectType:
     }
 
     ConstantData.setConstants( type, docs, primitiveTypes, coreTypes );
-
-    // TODO: signals
 
   }
 

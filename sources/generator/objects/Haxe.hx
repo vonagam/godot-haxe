@@ -72,6 +72,12 @@ function writeObjectHaxe( objectTypes: Array< ObjectTypeData > ) {
 
     }
 
+    for ( signal in type.signals ) {
+
+      signal.defineIn( definition );
+
+    }
+
     for ( constant in type.constants ) {
 
       constant.defineIn( definition );
