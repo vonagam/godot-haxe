@@ -23,9 +23,9 @@ function writeObjectHaxe( objectTypes: Array< ObjectTypeData > ) {
 
   final eApi = macro gd.hl.Objects;
 
-  final doConstructArgs = [ arg( 'doConstruct', tPath( 'Bool' ), { value: eBool( true ) } ) ];
+  final constructorArgs = [ arg( 'construct', tPath( 'Bool' ), { value: eBool( true ) } ) ];
 
-  final doConstructSuper = macro super( false );
+  final constructorSuper = macro super( false );
 
   for ( objectType in objectTypes ) {
 
@@ -48,9 +48,6 @@ function writeObjectHaxe( objectTypes: Array< ObjectTypeData > ) {
     } );
 
 
-    // TODO: isSingleton
-
-
     if ( name == 'Object' ) {
 
       definition.meta!.push( geMeta( macro @:autoBuild( gd.hl.Macro.build() ) _ ) );
@@ -60,6 +57,23 @@ function writeObjectHaxe( objectTypes: Array< ObjectTypeData > ) {
       definition.fields.push( gdField( macro class {
 
         @:keep private final ghData: hl.Abstract< 'gh_object_data' > = null;
+
+      } ) );
+
+    }
+
+
+    if ( type.isSingleton ) {
+
+      final typePath = tyPath( name );
+
+      final complexType = TPath( typePath );
+
+      definition.fields.append( gdFields( macro class {
+
+        public static var singleton( get, null ): $complexType;
+
+        private static function get_singleton() return singleton = singleton == null ? new $typePath() : singleton;
 
       } ) );
 
@@ -85,7 +99,7 @@ function writeObjectHaxe( objectTypes: Array< ObjectTypeData > ) {
     }
 
 
-    {
+    if ( name != 'Godot' ) {
 
       final access = [ type.isInstanciable ? APublic : APrivate ];
 
@@ -93,11 +107,13 @@ function writeObjectHaxe( objectTypes: Array< ObjectTypeData > ) {
 
       final name = 'new';
 
-      final doConstruct = macro if ( doConstruct ) gd.hl.Api.constructBinding( this, $v{ type.name.gds } );
+      final construct = type.isSingleton ? 'constructSingleton' : 'constructBinding';
 
-      final body = eBlock( extended.turn( () -> [ doConstructSuper, doConstruct ], () -> [ doConstruct ] ) );
+      final call = macro if ( construct ) gd.hl.Api.$construct( this, $v{ type.name.gds } );
 
-      final field = fFun( name, doConstructArgs, null, { access: access, meta: metas, body: body } );
+      final body = eBlock( extended.turn( () -> [ constructorSuper, call ], () -> [ call ] ) );
+
+      final field = fFun( name, constructorArgs, null, { access: access, meta: metas, body: body } );
 
       definition.fields.push( field );
 
@@ -173,7 +189,28 @@ function writeObjectHaxe( objectTypes: Array< ObjectTypeData > ) {
     }
 
 
-    if ( name != 'GlobalConstants' ) definition.output( 'objects' );
+    if ( name == 'Godot' ) for ( objectType in objectTypes ) {
+
+      if ( ! objectType.isSingleton || objectType.name.hx == 'Godot' ) continue;
+
+      final name = objectType.name.hx;
+
+      final getter = 'get_${ name }';
+
+      final complexType = tPath( name );
+
+      definition.fields.append( gdFields( macro class {
+
+        public static var $name( get, never ): $complexType;
+
+        private static extern inline function $getter() return gd.$name.singleton;
+
+      } ) );
+
+    }
+
+
+    definition.output( 'objects' );
 
     for ( data in type.enums ) data.toDefinition().output( 'objects' );
 
@@ -181,7 +218,7 @@ function writeObjectHaxe( objectTypes: Array< ObjectTypeData > ) {
 
   {
 
-    final types = objectTypes.filter( _ -> _.name.hx != 'GlobalConstants' );
+    final types = objectTypes.filter( _ -> _.name.hx != 'Godot' );
 
     apiDefinition.fields.push( gdField( macro class {
 

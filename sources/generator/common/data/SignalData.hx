@@ -1,7 +1,5 @@
 package common.data;
 
-using vhx.ds.ArrayTools;
-
 import haxe.macro.Expr;
 
 using vhx.str.StringTools;

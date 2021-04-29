@@ -133,11 +133,11 @@ function getObjectTypes( primitiveTypes: Array< PrimitiveTypeData >, objectType:
 
       type.name.gds = name;
 
-      type.name.hx = name == '@GlobalScope' ? 'GlobalConstants' : name;
+      type.name.hx = name == '@GlobalScope' ? 'Godot' : name;
 
       type.isInstanciable = objectJson.instanciable;
 
-      type.isSingleton = objectJson.singleton_name != '';
+      type.isSingleton = objectJson.singleton_name != '' && name != '@GlobalScope';
 
       type.enums = [ for ( enumJson in objectJson.enums ) new EnumData().tap( data -> {
 
@@ -359,6 +359,12 @@ function getObjectTypes( primitiveTypes: Array< PrimitiveTypeData >, objectType:
 
     }
 
+    if ( name != '@GlobalScope' ) {
+
+      ConstantData.setConstants( type, docs, primitiveTypes, coreTypes );
+
+    }
+
     for ( data in type.enums ) {
 
       for ( value in data.values ) {
@@ -370,8 +376,6 @@ function getObjectTypes( primitiveTypes: Array< PrimitiveTypeData >, objectType:
       }
 
     }
-
-    ConstantData.setConstants( type, docs, primitiveTypes, coreTypes );
 
   }
 

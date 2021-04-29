@@ -1,7 +1,5 @@
 package core;
 
-using vhx.ds.ArrayTools;
-
 using vhx.str.StringTools;
 
 import vhx.macro.ExprTools;

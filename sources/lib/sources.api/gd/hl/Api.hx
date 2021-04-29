@@ -123,6 +123,11 @@ class Api {
   public static function constructBinding( object: gd.Object, ownerClassName: String ): Void throw 8;
 
 
+  @:hlNative( 'gh', 'construct_singleton' )
+
+  public static function constructSingleton( object: gd.Object, ownerClassName: String ): Void throw 8;
+
+
   @:hlNative( 'gh', 'construct_script' )
 
   public static function constructScript( object: gd.Object, ownerClassName: String, scriptClassName: String ): Void throw 8;

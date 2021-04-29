@@ -42,32 +42,34 @@ void gh_construct_free() {
 }
 
 
-// construct godot object and set it up for pairing with haxe object
-
-static godot_object *gh_construct_owner( gh_object *object, const char *owner_class_name ) {
-
-  godot_class_constructor owner_constructor = gdnative_core->godot_get_class_constructor( owner_class_name );
-
-  godot_object *owner = owner_constructor();
-
-  gh_construct_set_pending( owner, object );
-
-  return owner;
-
-}
-
-
 // construct instance of godot object class
 
 HL_PRIM void HL_NAME( construct_binding )( gh_object *object, vstring *owner_class_name ) {
 
-  godot_object *owner = gh_construct_owner( object, hl_chars( owner_class_name ) );
+  godot_object *owner = gdnative_core->godot_get_class_constructor( hl_chars( owner_class_name ) )();
+
+  gh_construct_set_pending( owner, object );
 
   gdnative_nativescript_1_1->godot_nativescript_get_instance_binding_data( gdnative_language, owner );
 
 }
 
 DEFINE_PRIM( _VOID, construct_binding, _GH_OBJECT _STRING );
+
+
+// construct instance of godot singleton class
+
+HL_PRIM void HL_NAME( construct_singleton )( gh_object *object, vstring *owner_class_name ) {
+
+  godot_object *owner = gdnative_core->godot_global_get_singleton( hl_chars( owner_class_name ) );
+
+  gh_construct_set_pending( owner, object );
+
+  gdnative_nativescript_1_1->godot_nativescript_get_instance_binding_data( gdnative_language, owner );
+
+}
+
+DEFINE_PRIM( _VOID, construct_singleton, _GH_OBJECT _STRING );
 
 
 // construct instance of library registered class
@@ -102,7 +104,9 @@ HL_PRIM void HL_NAME( construct_script )( gh_object *object, vstring *owner_clas
   }
 
 
-  godot_object *owner = gh_construct_owner( object, hl_chars( owner_class_name ) );
+  godot_object *owner = gdnative_core->godot_get_class_constructor( hl_chars( owner_class_name ) )();
+
+  gh_construct_set_pending( owner, object );
 
   gdnative_core->godot_method_bind_ptrcall( owner_set_script, owner, ( const void *[] ) { script }, NULL );
 
