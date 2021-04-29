@@ -117,13 +117,23 @@ function getObjectTypes( primitiveTypes: Array< PrimitiveTypeData >, objectType:
 
   final objectJsons: Array< ObjectJson > = Json.parse( File.getContent( 'inputs/godot-headers/api.json' ) );
 
+  final getName = ( objectJson: ObjectJson ) -> {
+
+    return objectJson.name == 'GlobalConstants' ? '@GlobalScope' : ~/^_/.replace( objectJson.name, '' );
+
+  };
+
   final objectTypes = [ for ( objectJson in objectJsons ) {
 
-    objectJson.name => new ObjectTypeData().tap( type -> {
+    final name = getName( objectJson );
 
-      type.name.gds = objectJson.name;
+    final underscore = objectJson.name.charAt( 0 ) == '_' ? '_' : '';
 
-      type.name.hx = ~/[^A-Za-z0-9]/.replace( objectJson.name, '' );
+    name => new ObjectTypeData().tap( type -> {
+
+      type.name.gds = name;
+
+      type.name.hx = name == '@GlobalScope' ? 'GlobalConstants' : name;
 
       type.isInstanciable = objectJson.instanciable;
 
@@ -145,11 +155,13 @@ function getObjectTypes( primitiveTypes: Array< PrimitiveTypeData >, objectType:
 
         data.nameValues();
 
-        gdsTypes[ 'enum.${ type.name.gds }::${ data.name.gds }' ] = data;
+        gdsTypes[ 'enum.${ underscore }${ type.name.gds }::${ data.name.gds }' ] = data;
 
         gdsTypes[ '${ type.name.gds }.${ data.name.gds }' ] = data;
 
       } ) ];
+
+      gdsTypes[ underscore + type.name.gds ] = type;
 
       gdsTypes[ type.name.gds ] = type;
 
@@ -164,7 +176,7 @@ function getObjectTypes( primitiveTypes: Array< PrimitiveTypeData >, objectType:
 
   {
 
-    final type = objectTypes[ 'GlobalConstants' ];
+    final type = objectTypes[ '@GlobalScope' ];
 
     final docs = new ClassDocs( '@GlobalScope' );
 
@@ -197,9 +209,11 @@ function getObjectTypes( primitiveTypes: Array< PrimitiveTypeData >, objectType:
 
   for ( objectJson in objectJsons ) {
 
-    final docs = new ClassDocs( objectJson.name == 'GlobalConstants' ? '@GlobalScope' : objectJson.name );
+    final name = getName( objectJson );
 
-    final type = objectTypes[ objectJson.name ];
+    final docs = new ClassDocs( name );
+
+    final type = objectTypes[ name ];
 
     type.doc = docs.description();
 
@@ -267,9 +281,11 @@ function getObjectTypes( primitiveTypes: Array< PrimitiveTypeData >, objectType:
 
   for ( objectJson in objectJsons ) {
 
-    final docs = new ClassDocs( objectJson.name == 'GlobalConstants' ? '@GlobalScope' : objectJson.name );
+    final name = getName( objectJson );
 
-    final type = objectTypes[ objectJson.name ];
+    final docs = new ClassDocs( name );
+
+    final type = objectTypes[ name ];
 
     function findMethod( type: ObjectTypeData, name: String ) {
 
