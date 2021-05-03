@@ -358,6 +358,8 @@ HL_PRIM void HL_NAME( register_property )(
 
   );
 
+  gdnative_nativescript_1_1->godot_nativescript_set_type_tag( gdnative_handle, hl_chars( class_name ), gdnative_handle );
+
   if ( documentation != NULL ) {
 
     gdnative_nativescript_1_1->godot_nativescript_set_property_documentation(

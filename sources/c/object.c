@@ -146,15 +146,11 @@ gh_object *gh_object_get( godot_object *owner ) {
 
   if ( owner == NULL ) return NULL;
 
-  gh_object **root = gdnative_nativescript->godot_nativescript_get_userdata( owner );
+  gh_object **root = gdnative_nativescript_1_1->godot_nativescript_get_type_tag( owner ) == gdnative_handle
 
-  // TODO: if ( root != NULL ) check that it is haxe's nativescript and not from other binding language
+    ? gdnative_nativescript->godot_nativescript_get_userdata( owner )
 
-  if ( root == NULL ) {
-
-    root = gdnative_nativescript_1_1->godot_nativescript_get_instance_binding_data( gdnative_language, owner );
-
-  }
+    : gdnative_nativescript_1_1->godot_nativescript_get_instance_binding_data( gdnative_language, owner );
 
   return *root;
 
