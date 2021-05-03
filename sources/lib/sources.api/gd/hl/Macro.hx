@@ -521,7 +521,7 @@ class FieldMacro {
 
     final bottomType = Context.followWithAbstracts( topType );
 
-    if ( Context.unify( bottomType, Types.Object ) ) return macro ( ( $expr.asObject(): Any ): $complexType );
+    if ( Context.unify( bottomType, Types.Object ) ) return macro ( $expr.asObject(): Any );
 
     return null;
 
