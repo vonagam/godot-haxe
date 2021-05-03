@@ -77,9 +77,9 @@ endef
 
 inputs: inputs/godot inputs/godot-headers inputs/hashlink inputs/hashlink/libhl.dylib
 
-inputs/godot: ; $(call clone_git,$@,godotengine/godot,3.2.3-stable)
+inputs/godot: ; $(call clone_git,$@,godotengine/godot,3.3-stable)
 
-inputs/godot-headers: ; $(call clone_git,$@,godotengine/godot-headers,3.2)
+inputs/godot-headers: ; $(call clone_git,$@,godotengine/godot-headers,3.3)
 
 inputs/hashlink: ; $(call clone_git,$@,HaxeFoundation/hashlink)
 
